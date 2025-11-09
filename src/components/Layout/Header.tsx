@@ -90,11 +90,11 @@ export function Header() {
             {/* User Menu */}
             {user ? (
               <div className="flex items-center space-x-3">
-                <Link to="/profile" className="flex items-center space-x-2 hover:bg-slate-700 rounded-lg p-2 transition-colors">
+                <Link to="/dashboard" className="flex items-center space-x-2 hover:bg-slate-700 rounded-lg p-2 transition-colors">
                   <img
-                    src={user.avatar}
+                    src={user.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop'}
                     alt={user.name}
-                    className="w-8 h-8 rounded-full border border-slate-600"
+                    className="w-8 h-8 rounded-full border border-slate-600 object-cover"
                   />
                   <span className="hidden sm:block text-sm font-medium text-slate-200">{user.name}</span>
                 </Link>

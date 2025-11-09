@@ -9,6 +9,7 @@ import { Products } from './pages/Products';
 import { Government } from './pages/Government';
 import { Submit } from './pages/Submit';
 import { Login } from './pages/Login';
+import { Dashboard } from './pages/Dashboard';
 import { ProductDetail } from './pages/ProductDetail';
 import { GovernmentSubmit } from './pages/GovernmentSubmit';
 import { GovernmentProposalDetail } from './pages/GovernmentProposalDetail';
@@ -37,6 +38,7 @@ function App() {
                 <Route path="/government/:id" element={<GovernmentProposalDetail />} />
                 <Route path="/submit" element={<Submit />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/privacy" element={<Privacy />} />
