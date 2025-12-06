@@ -107,12 +107,20 @@ export function Header() {
                 </button>
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="text-slate-200 hover:text-cyan-400 font-medium transition-colors"
-              >
-                {t('nav.login')}
-              </Link>
+              <div className="flex items-center space-x-3">
+                <Link
+                  to="/login"
+                  className="text-slate-200 hover:text-cyan-400 font-medium transition-colors"
+                >
+                  {t('nav.login')}
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-600 transition-all shadow-lg hidden sm:block"
+                >
+                  Sign up
+                </Link>
+              </div>
             )}
 
             {/* Mobile Menu Button */}
@@ -172,6 +180,24 @@ export function Header() {
               >
                 {t('nav.submit')}
               </Link>
+              {!user && (
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block py-2 text-slate-200 hover:text-cyan-400 font-medium transition-colors"
+                  >
+                    {t('nav.login')}
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-4 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-600 transition-all text-center shadow-lg"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         )}

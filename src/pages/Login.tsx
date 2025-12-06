@@ -10,6 +10,7 @@ export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -17,10 +18,12 @@ export function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     try {
       await login(email, password);
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
+      setError(error.message || 'Login failed. Please check your credentials.');
       console.error('Login failed:', error);
     }
   };
@@ -71,6 +74,11 @@ export function Login() {
 
         {/* Email Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="sr-only">
               Email address

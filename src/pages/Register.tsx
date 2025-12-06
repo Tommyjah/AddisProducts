@@ -55,7 +55,7 @@ export function Register() {
             {
               id: data.user.id,
               full_name: fullName,
-              email: email,
+              email,
             },
           ]);
 
