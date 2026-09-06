@@ -1,29 +1,55 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { TrendingUp, Star, Rocket, Users, Search } from 'lucide-react';
-import { ProductCard } from '../components/Product/ProductCard';
-import { CategoryFilter } from '../components/Product/CategoryFilter';
-import { mockProducts } from '../data/mockData';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { TrendingUp, Star, Rocket, Users, Search } from 'lucide-react'
+import { ProductCard } from '../components/Product/ProductCard'
+import { CategoryFilter } from '../components/Product/CategoryFilter'
+import { fetchProducts } from '../lib/ProductClient'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export function Home() {
-  const { t } = useLanguage();
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const { t } = useLanguage()
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const featuredProducts = mockProducts.filter(p => p.isFeatured);
-  const trendingProducts = mockProducts
-    .sort((a, b) => b.votes - a.votes)
-    .slice(0, 6);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await fetchProducts()
+        setProducts(data)
+      } catch (err) {
+        console.error('Failed to load products:', err)
+        // If DB isn't set up yet, fall back to empty — UI shows empty state
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
 
-  const filteredProducts = selectedCategory === 'all' 
-    ? trendingProducts
-    : trendingProducts.filter(p => p.category.toLowerCase().includes(selectedCategory));
+  const featuredProducts = products.filter(p => p.isFeatured)
+  const trendingProducts = [...products].sort((a, b) => (b.votes || 0) - (a.votes || 0)).slice(0, 6)
+
+  const filteredProducts =
+    selectedCategory === 'all'
+      ? trendingProducts
+      : trendingProducts.filter(p => p.category?.toLowerCase().includes(selectedCategory))
+
+  const totalFunding = products.reduce((sum, p) => sum + (p.currentFunding || 0), 0)
+  const totalVotes = products.reduce((sum, p) => sum + (p.votes || 0), 0)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-20 relative overflow-hidden">
-        {/* Animated background elements */}
+      <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -38,7 +64,6 @@ export function Home() {
             <p className="text-lg md:text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
               {t('home.hero.subtitle')}
             </p>
-            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/products"
@@ -65,7 +90,7 @@ export function Home() {
               <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
                 <Rocket className="w-8 h-8 text-cyan-400" />
               </div>
-              <div className="text-3xl font-bold text-white mb-2">{mockProducts.length}+</div>
+              <div className="text-3xl font-bold text-white mb-2">{products.length}+</div>
               <div className="text-slate-300">Products</div>
             </div>
             <div className="text-center">
@@ -80,7 +105,7 @@ export function Home() {
                 <TrendingUp className="w-8 h-8 text-emerald-400" />
               </div>
               <div className="text-3xl font-bold text-white mb-2">
-                ${mockProducts.reduce((sum, p) => sum + (p.currentFunding || 0), 0).toLocaleString()}
+                ${totalFunding.toLocaleString()}
               </div>
               <div className="text-slate-300">Funding Raised</div>
             </div>
@@ -88,9 +113,7 @@ export function Home() {
               <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/30">
                 <Star className="w-8 h-8 text-yellow-400" />
               </div>
-              <div className="text-3xl font-bold text-white mb-2">
-                {mockProducts.reduce((sum, p) => sum + p.votes, 0)}
-              </div>
+              <div className="text-3xl font-bold text-white mb-2">{totalVotes}</div>
               <div className="text-slate-300">Total Votes</div>
             </div>
           </div>
@@ -102,19 +125,24 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-white">{t('home.featured')}</h2>
-            <Link
-              to="/products"
-              className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-            >
+            <Link to="/products" className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
               View all →
             </Link>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {featuredProducts.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <p className="mb-4">No featured products yet.</p>
+              <Link to="/submit" className="text-cyan-400 hover:text-cyan-300 font-medium">
+                Submit one →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -124,20 +152,21 @@ export function Home() {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-white">{t('home.trending')}</h2>
           </div>
-          
-          {/* Category Filter */}
           <div className="mb-8">
             <CategoryFilter
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
             />
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">No products in this category yet.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -160,5 +189,5 @@ export function Home() {
         </div>
       </section>
     </div>
-  );
+  )
 }

@@ -1,26 +1,73 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Github, Users, Calendar, Tag, ChevronUp, ChevronDown } from 'lucide-react';
-import { mockProducts, mockReviews } from '../data/mockData';
-import { RatingSystem } from '../components/Product/RatingSystem';
-import { ReviewCard } from '../components/Product/ReviewCard';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { ArrowLeft, ExternalLink, Github, Users, Calendar, Tag, ChevronUp, ChevronDown } from 'lucide-react'
+import { RatingSystem } from '../components/Product/RatingSystem'
+import { ReviewCard } from '../components/Product/ReviewCard'
+import { fetchProduct, fetchReviews, voteProduct, submitReview } from '../lib/ProductClient'
+import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 
 export function ProductDetail() {
+  const { id } = useParams<{ id: string }>()
+  const { t, language } = useLanguage()
+  const { user } = useAuth()
+  const [product, setProduct] = useState<any>(null)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [voteType, setVoteType] = useState<'up' | 'down' | null>(null)
+  const [localVotes, setLocalVotes] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [voting, setVoting] = useState(false)
+
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+    const load = async () => {
+      if (!id) return
+      try {
+        const [prod, revs] = await Promise.all([
+          fetchProduct(id),
+          fetchReviews(id),
+        ])
+        setProduct(prod)
+        setReviews(revs)
+        setLocalVotes(prod.votes || 0)
+      } catch (err) {
+        console.error('Failed to load product:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [id])
 
-  const { id } = useParams<{ id: string }>();
-  const { t, language } = useLanguage();
-  const { user } = useAuth();
-  const [voteType, setVoteType] = useState<'up' | 'down' | null>(null);
-  const [localVotes, setLocalVotes] = useState(0);
+  const handleVote = async (type: 'up' | 'down') => {
+    if (!user || !product) return
+    if (voteType === type) {
+      setLocalVotes(prev => type === 'up' ? prev - 1 : prev + 1)
+      setVoteType(null)
+      return
+    }
+    setVoting(true)
+    try {
+      await voteProduct(product.id, user.id)
+      const newVotes = type === 'up' ? localVotes + 1 : localVotes - 1
+      setLocalVotes(newVotes)
+      setVoteType(type)
+      // Refresh product
+      const updated = await fetchProduct(product.id)
+      setProduct(updated)
+    } catch (err) {
+      console.error('Vote failed:', err)
+    } finally {
+      setVoting(false)
+    }
+  }
 
-  const product = mockProducts.find(p => p.id === id);
-  const reviews = mockReviews.filter(r => r.productId === id);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+      </div>
+    )
+  }
 
   if (!product) {
     return (
@@ -32,35 +79,15 @@ export function ProductDetail() {
           </Link>
         </div>
       </div>
-    );
+    )
   }
 
-  React.useEffect(() => {
-    setLocalVotes(product.votes);
-  }, [product.votes]);
-
-  const handleVote = (type: 'up' | 'down') => {
-    if (!user) return;
-    
-    if (voteType === type) {
-      setLocalVotes(prev => type === 'up' ? prev - 1 : prev + 1);
-      setVoteType(null);
-    } else {
-      const change = voteType === null 
-        ? (type === 'up' ? 1 : -1)
-        : (type === 'up' ? 2 : -2);
-      setLocalVotes(prev => prev + change);
-      setVoteType(type);
-    }
-  };
-
-  const title = language === 'am' && product.titleAm ? product.titleAm : product.title;
-  const description = language === 'am' && product.descriptionAm ? product.descriptionAm : product.description;
+  const title = language === 'am' && product.titleAm ? product.titleAm : product.title
+  const description = language === 'am' && product.descriptionAm ? product.descriptionAm : product.description
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Back Button */}
         <Link
           to="/products"
           className="inline-flex items-center space-x-2 text-slate-300 hover:text-cyan-400 transition-colors mb-8"
@@ -92,7 +119,7 @@ export function ProductDetail() {
                   <span className="bg-slate-700 text-slate-200 text-sm font-medium px-3 py-1 rounded-full border border-slate-600">
                     {product.category}
                   </span>
-                  {product.tags.map((tag) => (
+                  {product.tags?.map((tag: string) => (
                     <span
                       key={tag}
                       className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-300 text-sm font-medium px-3 py-1 rounded-full border border-cyan-500/30"
@@ -107,29 +134,38 @@ export function ProductDetail() {
                 <div className="flex items-center justify-between border-t border-slate-700 pt-4">
                   <div className="flex items-center space-x-3">
                     <img
-                      src={product.user.avatar}
-                      alt={product.user.name}
+                      src={product.user?.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop'}
+                      alt={product.user?.name}
                       className="w-12 h-12 rounded-full border border-slate-600"
                     />
                     <div>
-                      <h3 className="font-medium text-white">{product.user.name}</h3>
+                      <h3 className="font-medium text-white">{product.user?.name}</h3>
                       <p className="text-sm text-slate-400">Creator</p>
                     </div>
                   </div>
-                  
                   <div className="flex items-center space-x-2 text-sm text-slate-400">
                     <Calendar className="w-4 h-4" />
-                    <span>{product.createdAt.toLocaleDateString()}</span>
+                    <span>{new Date(product.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Rating System */}
+            {/* Rating System — wired to real reviews */}
             <RatingSystem
               productId={product.id}
-              currentRating={product.rating}
-              reviewCount={product.reviewCount}
+              currentRating={product.rating || 0}
+              reviewCount={product.reviewCount || 0}
+              onRatingSubmit={async (rating, comment) => {
+                if (!user) return
+                try {
+                  await submitReview(product.id, user.id, rating, comment)
+                  const updated = await fetchReviews(product.id)
+                  setReviews(updated)
+                } catch (err) {
+                  console.error('Review submission failed:', err)
+                }
+              }}
             />
 
             {/* Reviews */}
@@ -137,7 +173,7 @@ export function ProductDetail() {
               <h2 className="text-2xl font-bold text-white">Reviews</h2>
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review) => (
+                  {reviews.map((review: any) => (
                     <ReviewCard key={review.id} review={review} />
                   ))}
                 </div>
@@ -157,7 +193,7 @@ export function ProductDetail() {
               <div className="flex items-center justify-center space-x-4">
                 <button
                   onClick={() => handleVote('up')}
-                  disabled={!user}
+                  disabled={!user || voting}
                   className={`flex flex-col items-center p-4 rounded-lg transition-all ${
                     voteType === 'up'
                       ? 'bg-cyan-500 text-white shadow-lg'
@@ -169,15 +205,15 @@ export function ProductDetail() {
                   <ChevronUp className="w-6 h-6" />
                   <span className="text-sm font-medium mt-1">Upvote</span>
                 </button>
-                
+
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white">{localVotes}</div>
                   <div className="text-sm text-slate-400">votes</div>
                 </div>
-                
+
                 <button
                   onClick={() => handleVote('down')}
-                  disabled={!user}
+                  disabled={!user || voting}
                   className={`flex flex-col items-center p-4 rounded-lg transition-all ${
                     voteType === 'down'
                       ? 'bg-red-500 text-white shadow-lg'
@@ -221,46 +257,24 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Collaborators */}
-            {product.collaborators.length > 1 && (
-              <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  <Users className="w-5 h-5 inline mr-2" />
-                  Collaborators
-                </h3>
-                <div className="space-y-3">
-                  {product.collaborators.map((collaborator) => (
-                    <div key={collaborator.id} className="flex items-center space-x-3">
-                      <img
-                        src={collaborator.avatar}
-                        alt={collaborator.name}
-                        className="w-8 h-8 rounded-full border border-slate-600"
-                      />
-                      <span className="text-slate-300">{collaborator.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Funding Progress */}
-            {product.status === 'funding' && product.fundingGoal && product.currentFunding !== undefined && (
+            {product.status === 'funding' && product.fundingGoal > 0 && (
               <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Funding Progress</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-300">Raised: ${product.currentFunding.toLocaleString()}</span>
-                    <span className="text-slate-300">Goal: ${product.fundingGoal.toLocaleString()}</span>
+                    <span className="text-slate-300">Raised: ${product.currentFunding?.toLocaleString()}</span>
+                    <span className="text-slate-300">Goal: ${product.fundingGoal?.toLocaleString()}</span>
                   </div>
                   <div className="w-full bg-slate-700 rounded-full h-3">
                     <div
                       className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-3 rounded-full transition-all shadow-lg"
-                      style={{ width: `${Math.min((product.currentFunding / product.fundingGoal) * 100, 100)}%` }}
+                      style={{ width: `${Math.min(((product.currentFunding || 0) / product.fundingGoal) * 100, 100)}%` }}
                     />
                   </div>
                   <div className="text-center">
                     <span className="text-2xl font-bold text-white">
-                      {Math.round((product.currentFunding / product.fundingGoal) * 100)}%
+                      {Math.round(((product.currentFunding || 0) / product.fundingGoal) * 100)}%
                     </span>
                     <p className="text-sm text-slate-400">funded</p>
                   </div>
@@ -291,5 +305,5 @@ export function ProductDetail() {
         </div>
       </div>
     </div>
-  );
+  )
 }
