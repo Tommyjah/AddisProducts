@@ -187,3 +187,43 @@ export async function createCollaborationRequest(productId: string, userId: stri
   if (error) throw error
   return result
 }
+
+// Government proposals table (separate from products — seeded separately)
+export async function fetchGovernmentProposals() {
+  const { data, error } = await supabase
+    .from('government_proposals')
+    .select(`*, profiles (id, full_name, avatar_url, bio, role, created_at)`)
+    .order('submitted_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching government proposals:', error)
+    return []
+  }
+
+  if (!data) return []
+
+  return (data || []).map(row => ({
+    id: row.id,
+    title: row.title,
+    titleAm: row.title_am,
+    description: row.description,
+    descriptionAm: row.description_am,
+    budget: row.budget,
+    timeline: row.timeline,
+    requirements: row.requirements || [],
+    userId: row.user_id,
+    user: {
+      id: row.profiles?.id || '',
+      name: row.profiles?.full_name || 'Unknown',
+      email: '',
+      avatar: row.profiles?.avatar_url || '',
+      role: row.profiles?.role || 'regular',
+      bio: row.profiles?.bio,
+      joinedAt: new Date(row.profiles?.created_at || ''),
+    },
+    status: row.status as 'submitted' | 'under_review' | 'accepted' | 'declined',
+    submittedAt: new Date(row.submitted_at || row.created_at),
+    reviewedAt: row.reviewed_at ? new Date(row.reviewed_at) : undefined,
+    reviewNotes: row.review_notes,
+  }))
+}
