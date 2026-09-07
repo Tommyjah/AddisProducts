@@ -68,7 +68,7 @@ export type Database = {
           user_id?: string
         }
       }
-      profiles: {
+      users: {
         Row: {
           id: string
           full_name: string
@@ -76,9 +76,11 @@ export type Database = {
           bio: string | null
           github_username: string | null
           twitter_username: string | null
+          linkedin_url: string | null
           website_url: string | null
           role: 'regular' | 'government' | 'admin'
           email: string | null
+          is_verified: boolean | null
           created_at: string
           updated_at: string
         }
@@ -89,9 +91,11 @@ export type Database = {
           bio?: string
           github_username?: string
           twitter_username?: string
+          linkedin_url?: string
           website_url?: string
           role?: 'regular' | 'government' | 'admin'
           email?: string
+          is_verified?: boolean
         }
         Update: {
           full_name?: string
@@ -99,9 +103,11 @@ export type Database = {
           bio?: string
           github_username?: string
           twitter_username?: string
+          linkedin_url?: string
           website_url?: string
           role?: 'regular' | 'government' | 'admin'
           email?: string
+          is_verified?: boolean
         }
       }
       votes: {
@@ -259,7 +265,11 @@ export type SupabaseClientType = SupabaseClient<Database>
 // Helper to get a typed supabase client
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase env vars: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY')
+}
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)

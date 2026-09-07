@@ -6,7 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 
 export function Register() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, loginWithGoogle, loginWithGitHub } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -49,17 +49,28 @@ export function Register() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              full_name: fullName,
-              email,
-            },
-          ]);
+        const tables = ['users', 'profiles']
+        let profileError: any = null
 
-        if (profileError) throw profileError;
+        for (const table of tables) {
+          const { error } = await supabase
+            .from(table)
+            .insert([
+              {
+                id: data.user.id,
+                full_name: fullName,
+                email,
+              },
+            ])
+          
+          if (!error) {
+            profileError = null
+            break
+          }
+          profileError = error
+        }
+
+        if (profileError) throw profileError
 
         navigate('/login');
       }
@@ -68,6 +79,22 @@ export function Register() {
       console.error('Registration error:', err);
     } finally {
       setRegistering(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      setError(err.message || 'Google sign up failed');
+    }
+  };
+
+  const handleGitHubSignUp = async () => {
+    try {
+      await loginWithGitHub();
+    } catch (err: any) {
+      setError(err.message || 'GitHub sign up failed');
     }
   };
 
@@ -82,6 +109,36 @@ export function Register() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Create account</h2>
           <p className="mt-2 text-gray-600">Join our community</p>
+        </div>
+
+        {/* Social Sign Up */}
+        <div className="space-y-3">
+          <button
+            onClick={handleGoogleSignUp}
+            disabled={isLoading || registering}
+            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <Mail className="w-5 h-5 mr-2" />
+            Sign up with Google
+          </button>
+
+          <button
+            onClick={handleGitHubSignUp}
+            disabled={isLoading || registering}
+            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <Github className="w-5 h-5 mr-2" />
+            Sign up with GitHub
+          </button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-gray-50 text-gray-500">Or sign up with email</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

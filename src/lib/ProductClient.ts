@@ -6,7 +6,7 @@ export async function fetchProducts() {
     .from('products')
     .select(`
       *,
-      profiles (
+      users (
         id,
         full_name,
         avatar_url,
@@ -41,16 +41,16 @@ function transformProduct(row: any): any {
     reviewCount: row.review_count || 0,
     userId: row.user_id,
     user: {
-      id: row.profiles?.id || '',
-      name: row.profiles?.full_name || 'Unknown',
+      id: row.users?.id || '',
+      name: row.users?.full_name || 'Unknown',
       email: '',
-      avatar: row.profiles?.avatar_url || '',
-      role: row.profiles?.role || 'regular',
-      bio: row.profiles?.bio,
-      github: row.profiles?.github_username,
-      twitter: row.profiles?.twitter_username,
-      website: row.profiles?.website_url,
-      joinedAt: new Date(row.profiles?.created_at || ''),
+      avatar: row.users?.avatar_url || '',
+      role: row.users?.role || 'regular',
+      bio: row.users?.bio,
+      github: row.users?.github_username,
+      twitter: row.users?.twitter_username,
+      website: row.users?.website_url,
+      joinedAt: new Date(row.users?.created_at || ''),
     },
     createdAt: new Date(row.created_at),
     isFeatured: row.is_featured || false,
@@ -68,7 +68,7 @@ export async function fetchProduct(id: string) {
     .from('products')
     .select(`
       *,
-      profiles (
+      users (
         id,
         full_name,
         avatar_url,
@@ -133,7 +133,7 @@ export async function submitReview(productId: string, userId: string, rating: nu
 export async function fetchReviews(productId: string) {
   const { data, error } = await supabase
     .from('reviews')
-    .select(`*, profiles (id, full_name, avatar_url)`)
+    .select(`*, users (id, full_name, avatar_url)`)
     .eq('product_id', productId)
     .order('created_at', { ascending: false })
 
@@ -145,9 +145,9 @@ export async function fetchReviews(productId: string) {
     helpful: r.helpful_count || 0,
     userId: r.user_id,
     user: {
-      id: r.profiles?.id || '',
-      name: r.profiles?.full_name || 'User',
-      avatar: r.profiles?.avatar_url || '',
+      id: r.users?.id || '',
+      name: r.users?.full_name || 'User',
+      avatar: r.users?.avatar_url || '',
     },
     productId,
     createdAt: new Date(r.created_at),
@@ -168,7 +168,7 @@ export async function createPledge(productId: string, userId: string, amount: nu
 export async function fetchPledges(productId: string) {
   const { data, error } = await supabase
     .from('pledges')
-    .select(`*, profiles (id, full_name, avatar_url)`)
+    .select(`*, users (id, full_name, avatar_url)`)
     .eq('product_id', productId)
     .eq('status', 'pledged')
     .order('created_at', { ascending: false })
@@ -192,7 +192,7 @@ export async function createCollaborationRequest(productId: string, userId: stri
 export async function fetchGovernmentProposals() {
   const { data, error } = await supabase
     .from('government_proposals')
-    .select(`*, profiles (id, full_name, avatar_url, bio, role, created_at)`)
+    .select(`*, users (id, full_name, avatar_url, bio, role, created_at)`)
     .order('submitted_at', { ascending: false })
 
   if (error) {
@@ -213,13 +213,13 @@ export async function fetchGovernmentProposals() {
     requirements: row.requirements || [],
     userId: row.user_id,
     user: {
-      id: row.profiles?.id || '',
-      name: row.profiles?.full_name || 'Unknown',
+      id: row.users?.id || '',
+      name: row.users?.full_name || 'Unknown',
       email: '',
-      avatar: row.profiles?.avatar_url || '',
-      role: row.profiles?.role || 'regular',
-      bio: row.profiles?.bio,
-      joinedAt: new Date(row.profiles?.created_at || ''),
+      avatar: row.users?.avatar_url || '',
+      role: row.users?.role || 'regular',
+      bio: row.users?.bio,
+      joinedAt: new Date(row.users?.created_at || ''),
     },
     status: row.status as 'submitted' | 'under_review' | 'accepted' | 'declined',
     submittedAt: new Date(row.submitted_at || row.created_at),

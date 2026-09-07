@@ -17,43 +17,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Helper: fetch or create user profile in public.users
 async function upsertUser(userId: string, email: string) {
-  // Check if user exists
-  const { data: existing } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
+  const tables = ['users', 'profiles']
+  
+  for (const table of tables) {
+    try {
+      const { data: existing } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
 
-  if (existing) return existing
+      if (existing) return existing
 
-  // Create user record
-  const { error } = await supabase
-    .from('users')
-    .insert({
-      id: userId,
-      full_name: 'User',
-      email: email,
-      role: 'regular',
-      bio: '',
-      avatar_url: '',
-      github_username: '',
-      twitter_username: '',
-      website_url: '',
-    })
+      const { error } = await supabase
+        .from(table)
+        .insert({
+          id: userId,
+          full_name: 'User',
+          email: email,
+          role: 'regular',
+          bio: '',
+          avatar_url: '',
+          github_username: '',
+          twitter_username: '',
+          website_url: '',
+        })
 
-  if (error) {
-    console.error('Error creating user record:', error)
-    return null
+      if (error) {
+        console.error(`Error creating user record in ${table}:`, error)
+        continue
+      }
+
+      const { data: created } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (created) return created
+    } catch (err) {
+      console.error(`Error upserting user in ${table}:`, err)
+    }
   }
-
-  // Fetch the newly created record
-  const { data: created } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
-
-  return created
+  
+  return null
 }
 
 function buildUser(record: any, email: string): User {
@@ -88,6 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (record) {
             setProfile(record)
             setUser(buildUser(record, email))
+          } else {
+            console.warn('Could not load or create user profile, using auth data only')
+            setUser({
+              id: userId,
+              name: data.session.user.user_metadata?.full_name || data.session.user.user_metadata?.name || 'User',
+              email: email || '',
+              avatar: data.session.user.user_metadata?.avatar_url || data.session.user.user_metadata?.picture || '',
+              role: 'regular',
+              bio: '',
+              github: '',
+              twitter: '',
+              website: '',
+              joinedAt: new Date(data.session.user.created_at),
+            })
           }
         }
       } catch (error) {
@@ -109,6 +130,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (record) {
             setProfile(record)
             setUser(buildUser(record, email))
+          } else {
+            console.warn('Could not load or create user profile, using auth data only')
+            setUser({
+              id: userId,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'User',
+              email: email || '',
+              avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '',
+              role: 'regular',
+              bio: '',
+              github: '',
+              twitter: '',
+              website: '',
+              joinedAt: new Date(session.user.created_at),
+            })
           }
         } else {
           setUser(null)
@@ -142,6 +177,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (record) {
           setProfile(record)
           setUser(buildUser(record, email))
+        } else {
+          console.warn('Could not load or create user profile, using auth data only')
+          setUser({
+            id: userId,
+            name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'User',
+            email: email || '',
+            avatar: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || '',
+            role: 'regular',
+            bio: '',
+            github: '',
+            twitter: '',
+            website: '',
+            joinedAt: new Date(data.user.created_at),
+          })
         }
       }
     } catch (error) {
@@ -153,7 +202,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loginWithGoogle = async () => {
-    setIsLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -161,9 +209,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) throw error
-    } catch (error) {
+      if (error) {
+        console.error('Google login error:', error)
+        alert(`Google login error: ${error.message}`)
+        throw error
+      }
+    } catch (error: any) {
       console.error('Google login error:', error)
+      alert(`Google login error: ${error.message || 'Unknown error'}`)
       throw error
     } finally {
       setIsLoading(false)
@@ -171,7 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loginWithGitHub = async () => {
-    setIsLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
@@ -179,9 +231,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) throw error
-    } catch (error) {
+      if (error) {
+        console.error('GitHub login error:', error)
+        alert(`GitHub login error: ${error.message}`)
+        throw error
+      }
+    } catch (error: any) {
       console.error('GitHub login error:', error)
+      alert(`GitHub login error: ${error.message || 'Unknown error'}`)
       throw error
     } finally {
       setIsLoading(false)
@@ -206,32 +263,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!user) throw new Error('No user logged in')
 
-      const { error } = await supabase
-        .from('users')
-        .update({
-          full_name: data.full_name,
-          avatar_url: data.avatar_url,
-          bio: data.bio,
-          github_username: data.github_username,
-          twitter_username: data.twitter_username,
-          website_url: data.website_url,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
+      const tables = ['users', 'profiles']
+      let lastError: any = null
 
-      if (error) throw error
+      for (const table of tables) {
+        const { error } = await supabase
+          .from(table)
+          .update({
+            full_name: data.full_name,
+            avatar_url: data.avatar_url,
+            bio: data.bio,
+            github_username: data.github_username,
+            twitter_username: data.twitter_username,
+            website_url: data.website_url,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id)
 
-      const updated = { ...profile, ...data }
-      setProfile(updated)
-      setUser({
-        ...user,
-        name: data.full_name,
-        avatar: data.avatar_url,
-        bio: data.bio,
-        github: data.github_username,
-        twitter: data.twitter_username,
-        website: data.website_url,
-      })
+        if (!error) {
+          const updated = { ...profile, ...data }
+          setProfile(updated)
+          setUser({
+            ...user,
+            name: data.full_name,
+            avatar: data.avatar_url,
+            bio: data.bio,
+            github: data.github_username,
+            twitter: data.twitter_username,
+            website: data.website_url,
+          })
+          return
+        }
+        
+        lastError = error
+      }
+
+      throw lastError || new Error('Failed to update profile')
     } catch (error) {
       console.error('Update profile error:', error)
       throw error

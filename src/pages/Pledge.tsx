@@ -142,9 +142,9 @@ export function Pledge() {
                 <div className="space-y-3">
                   {pledges.slice(0, 5).map(p => (
                     <div key={p.id} className="flex items-center space-x-3">
-                      <img src={p.profiles?.avatar_url || ''} alt={p.profiles?.full_name} className="w-8 h-8 rounded-full border border-slate-600" />
+                      <img src={p.users?.avatar_url || ''} alt={p.users?.full_name} className="w-8 h-8 rounded-full border border-slate-600" />
                       <div className="flex-1">
-                        <p className="text-sm text-white">{p.profiles?.full_name || 'Anonymous'}</p>
+                        <p className="text-sm text-white">{p.users?.full_name || 'Anonymous'}</p>
                         <p className="text-xs text-slate-400">${p.amount}</p>
                       </div>
                     </div>

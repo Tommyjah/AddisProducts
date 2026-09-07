@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
 import { Home } from './pages/Home';
@@ -10,6 +11,7 @@ import { Government } from './pages/Government';
 import { Submit } from './pages/Submit';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { AuthCallback } from './pages/AuthCallback';
 import { Dashboard } from './pages/Dashboard';
 import { ProductDetail } from './pages/ProductDetail';
 import { GovernmentSubmit } from './pages/GovernmentSubmit';
@@ -24,38 +26,40 @@ import { Collaborate } from './pages/Collaborate';
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/products/:id" element={<ProductDetail />} />
-                <Route path="/government" element={<Government />} />
-                <Route path="/government-submit" element={<GovernmentSubmit />} />
-                <Route path="/government/:id" element={<GovernmentProposalDetail />} />
-                <Route path="/submit" element={<Submit />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/guidelines" element={<Guidelines />} />
-                <Route path="/pledge/:id" element={<Pledge />} />
-                <Route path="/collaborate/:id" element={<Collaborate />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </Router>
-      </AuthProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <AuthProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+              <Header />
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/products/:id" element={<ProductDetail />} />
+                  <Route path="/government" element={<Government />} />
+                  <Route path="/government-submit" element={<GovernmentSubmit />} />
+                  <Route path="/government/:id" element={<GovernmentProposalDetail />} />
+                  <Route path="/submit" element={<Submit />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/guidelines" element={<Guidelines />} />
+                  <Route path="/pledge/:id" element={<Pledge />} />
+                  <Route path="/collaborate/:id" element={<Collaborate />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </Router>
+        </AuthProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
 

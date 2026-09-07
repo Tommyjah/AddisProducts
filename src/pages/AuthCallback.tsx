@@ -7,45 +7,45 @@ export function AuthCallback() {
 
   useEffect(() => {
     const handleAuth = async () => {
-      // First try getSession (handles refresh token flow)
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        // Check if we have a session
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        navigate('/');
-        return;
-      }
+        if (session?.user) {
+          console.log('Auth callback: session found', session.user.email);
+          navigate('/');
+          return;
+        }
 
-      // If no session, try to parse tokens from URL hash
-      // This happens when OAuth returns with tokens in the hash
-      const hash = window.location.hash;
-      if (hash && hash.includes('access_token')) {
-        const params = new URLSearchParams(
-          hash.substring(1).split('&').map(p => {
-            const [k, ...v] = p.split('=');
-            return [k, v.join('=')];
-          })
-        );
+        // Try to exchange code for session (Google OAuth code flow)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const next = urlParams.get('next') || '/';
 
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-
-        if (accessToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || undefined,
-          });
-
-          if (!error) {
-            navigate('/');
+        if (code) {
+          console.log('Auth callback: exchanging code for session');
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error('Auth callback: exchange error', error);
+            navigate('/login?error=auth_failed');
+            return;
+          }
+          
+          if (data.session) {
+            console.log('Auth callback: session created', data.session.user.email);
+            navigate(next);
             return;
           }
         }
-      }
 
-      // If all else fails, try signInWithIdToken (Google) or just navigate
-      // Clear the hash to avoid showing tokens
-      window.history.replaceState(null, '', window.location.pathname);
-      navigate('/login?error=auth_failed');
+        // Clear URL params
+        window.history.replaceState(null, '', window.location.pathname);
+        navigate('/login?error=auth_failed');
+      } catch (err) {
+        console.error('Auth callback error:', err);
+        navigate('/login?error=auth_failed');
+      }
     };
 
     handleAuth();
