@@ -26,12 +26,11 @@ export function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">AP</span>
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-              Addis Product
-            </span>
+            <img
+              src="/addis-logo.png"
+              alt="Addis Products"
+              className="h-10 w-auto object-contain"
+            />
           </Link>
 
           {/* Search Bar - Desktop */}
