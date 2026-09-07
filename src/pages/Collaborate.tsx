@@ -61,7 +61,13 @@ export function Collaborate() {
         .single();
 
       if (error) throw error;
-      setProduct(data);
+      
+      const mappedProduct = {
+        ...data,
+        image: data.image_url || ''
+      };
+      
+      setProduct(mappedProduct);
     } catch (error) {
       console.error('Error fetching product:', error);
     } finally {
@@ -78,7 +84,6 @@ export function Collaborate() {
 
     setIsSubmitting(true);
     try {
-      // Insert collaboration request
       const { error } = await supabase
         .from('collaboration_requests')
         .insert({
@@ -96,7 +101,6 @@ export function Collaborate() {
 
       setSubmitMessage('Collaboration request sent successfully! The project owner will review your request.');
       
-      // Reset form
       setSelectedRole('');
       setMessage('');
       setExperience('');
@@ -162,7 +166,6 @@ export function Collaborate() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Back Button */}
         <Link
           to={`/products/${product.id}`}
           className="inline-flex items-center space-x-2 text-slate-300 hover:text-cyan-400 transition-colors mb-8"
@@ -172,11 +175,10 @@ export function Collaborate() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Project Info */}
           <div className="space-y-6">
             <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
               <img
-                src={product.image}
+                src={product.image || 'https://via.placeholder.com/600x300?text=No+Image'}
                 alt={product.title}
                 className="w-full h-48 object-cover"
               />
@@ -186,7 +188,6 @@ export function Collaborate() {
               </div>
             </div>
 
-            {/* Project Owner */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">
                 <User className="w-5 h-5 inline mr-2" />
@@ -194,7 +195,7 @@ export function Collaborate() {
               </h3>
               <div className="flex items-start space-x-4">
                 <img
-                  src={product.users.avatar_url}
+                  src={product.users.avatar_url || 'https://via.placeholder.com/100x100?text=User'}
                   alt={product.users.full_name}
                   className="w-16 h-16 rounded-full border border-slate-600"
                 />
@@ -229,7 +230,6 @@ export function Collaborate() {
               </div>
             </div>
 
-            {/* Why Collaborate */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">
                 <Star className="w-5 h-5 inline mr-2" />
@@ -252,7 +252,6 @@ export function Collaborate() {
             </div>
           </div>
 
-          {/* Collaboration Form */}
           <div className="space-y-6">
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h2 className="text-2xl font-bold text-white mb-6">
@@ -273,7 +272,6 @@ export function Collaborate() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Role Selection */}
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-3">
                     How would you like to contribute? *
@@ -306,7 +304,6 @@ export function Collaborate() {
                   </div>
                 </div>
 
-                {/* Experience */}
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
                     Relevant Experience *
@@ -321,7 +318,6 @@ export function Collaborate() {
                   />
                 </div>
 
-                {/* Portfolio */}
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
                     Portfolio/GitHub URL
@@ -335,7 +331,6 @@ export function Collaborate() {
                   />
                 </div>
 
-                {/* Availability */}
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
                     Availability *
@@ -355,7 +350,6 @@ export function Collaborate() {
                   </select>
                 </div>
 
-                {/* Message */}
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
                     Message to Project Owner *
@@ -370,7 +364,6 @@ export function Collaborate() {
                   />
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -391,7 +384,6 @@ export function Collaborate() {
               </form>
             </div>
 
-            {/* Tips */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">
                 <MessageCircle className="w-5 h-5 inline mr-2" />
