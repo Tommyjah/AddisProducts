@@ -15,6 +15,62 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Helper: fetch or create user profile in public.users
+async function upsertUser(userId: string, email: string) {
+  // Check if user exists
+  const { data: existing } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (existing) return existing
+
+  // Create user record
+  const { error } = await supabase
+    .from('users')
+    .insert({
+      id: userId,
+      full_name: 'User',
+      email: email,
+      role: 'regular',
+      bio: '',
+      avatar_url: '',
+      github_username: '',
+      twitter_username: '',
+      website_url: '',
+    })
+
+  if (error) {
+    console.error('Error creating user record:', error)
+    return null
+  }
+
+  // Fetch the newly created record
+  const { data: created } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  return created
+}
+
+function buildUser(record: any, email: string): User {
+  return {
+    id: record.id,
+    name: record.full_name || 'User',
+    email: email || '',
+    avatar: record.avatar_url || '',
+    role: record.role || 'regular',
+    bio: record.bio,
+    github: record.github_username,
+    twitter: record.twitter_username,
+    website: record.website_url,
+    joinedAt: new Date(record.created_at),
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<any | null>(null)
@@ -28,26 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userId = data.session.user.id
           const email = data.session.user.email
 
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle()
-
-          if (profileData) {
-            setProfile(profileData)
-            setUser({
-              id: userId,
-              name: profileData.full_name || 'User',
-              email: email || '',
-              avatar: profileData.avatar_url || '',
-              role: profileData.role || 'regular',
-              bio: profileData.bio,
-              github: profileData.github_username,
-              twitter: profileData.twitter_username,
-              website: profileData.website_url,
-              joinedAt: new Date(profileData.created_at),
-            })
+          const record = await upsertUser(userId, email)
+          if (record) {
+            setProfile(record)
+            setUser(buildUser(record, email))
           }
         }
       } catch (error) {
@@ -65,26 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userId = session.user.id
           const email = session.user.email
 
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle()
-
-          if (profileData) {
-            setProfile(profileData)
-            setUser({
-              id: userId,
-              name: profileData.full_name || 'User',
-              email: email || '',
-              avatar: profileData.avatar_url || '',
-              role: profileData.role || 'regular',
-              bio: profileData.bio,
-              github: profileData.github_username,
-              twitter: profileData.twitter_username,
-              website: profileData.website_url,
-              joinedAt: new Date(profileData.created_at),
-            })
+          const record = await upsertUser(userId, email)
+          if (record) {
+            setProfile(record)
+            setUser(buildUser(record, email))
           }
         } else {
           setUser(null)
@@ -114,26 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userId = data.user.id
         const email = data.user.email
 
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle()
-
-        if (profileData) {
-          setProfile(profileData)
-          setUser({
-            id: userId,
-            name: profileData.full_name || 'User',
-            email: email || email,
-            avatar: profileData.avatar_url || '',
-            role: profileData.role || 'regular',
-            bio: profileData.bio,
-            github: profileData.github_username,
-            twitter: profileData.twitter_username,
-            website: profileData.website_url,
-            joinedAt: new Date(profileData.created_at),
-          })
+        const record = await upsertUser(userId, email)
+        if (record) {
+          setProfile(record)
+          setUser(buildUser(record, email))
         }
       }
     } catch (error) {
@@ -199,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) throw new Error('No user logged in')
 
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           full_name: data.full_name,
           avatar_url: data.avatar_url,
@@ -213,7 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error
 
-      setProfile({ ...profile, ...data })
+      const updated = { ...profile, ...data }
+      setProfile(updated)
       setUser({
         ...user,
         name: data.full_name,

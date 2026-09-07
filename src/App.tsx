@@ -48,6 +48,7 @@ function App() {
                 <Route path="/guidelines" element={<Guidelines />} />
                 <Route path="/pledge/:id" element={<Pledge />} />
                 <Route path="/collaborate/:id" element={<Collaborate />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
               </Routes>
             </main>
             <Footer />
