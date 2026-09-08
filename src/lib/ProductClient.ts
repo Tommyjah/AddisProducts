@@ -283,7 +283,7 @@ export async function createCollaborationRequest(
   data: Record<string, unknown>
 ): Promise<{ id: string }> {
   const { data: result, error } = await supabase
-    .from('collaboration_requests')
+      .from('collaborations')
     .insert([{ product_id: productId, user_id: userId, ...data, status: 'pending' }] as never)
     .select('id')
     .single()

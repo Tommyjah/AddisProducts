@@ -85,7 +85,7 @@ export function Collaborate() {
     setIsSubmitting(true);
     try {
       const { error } = await supabase
-        .from('collaboration_requests')
+        .from('collaborations')
         .insert({
           user_id: user.id,
           product_id: product.id,

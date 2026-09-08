@@ -179,7 +179,7 @@ export type Database = {
           chapa_transaction_id?: string
         }
       }
-      collaboration_requests: {
+      collaborations: {
         Row: {
           id: string
           product_id: string
@@ -332,34 +332,6 @@ export type Database = {
         }
         Update: {
           amount?: number
-          status?: string
-        }
-      }
-      collaborations: {
-        Row: {
-          id: string
-          product_id: string
-          user_id: string
-          role: string
-          message: string | null
-          experience: string | null
-          portfolio_url: string | null
-          availability: string | null
-          status: string | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          product_id: string
-          user_id: string
-          role: string
-          message?: string
-          experience?: string
-          portfolio_url?: string
-          availability?: string
-          status?: string
-        }
-        Update: {
           status?: string
         }
       }
