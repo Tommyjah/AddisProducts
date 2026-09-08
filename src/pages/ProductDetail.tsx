@@ -219,15 +219,11 @@ export function ProductDetail() {
               reviewCount={product.reviewCount || 0}
               onRatingSubmit={async (rating, comment) => {
                 if (!user) return
-                try {
-                  await submitReview(product.id, user.id, rating, comment)
-                  const updated = await fetchReviews(product.id)
-                  setReviews(updated)
-                  const refreshed = await fetchProduct(product.id)
-                  if (refreshed) setProduct(refreshed)
-                } catch (err) {
-                  console.error('Review submission failed:', err)
-                }
+                await submitReview(product.id, user.id, rating, comment)
+                const updated = await fetchReviews(product.id)
+                setReviews(updated)
+                const refreshed = await fetchProduct(product.id)
+                if (refreshed) setProduct(refreshed)
               }}
             />
 

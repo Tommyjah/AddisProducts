@@ -6,7 +6,7 @@ interface RatingSystemProps {
   productId: string
   currentRating: number
   reviewCount: number
-  onRatingSubmit?: (rating: number, comment: string) => void
+  onRatingSubmit?: (rating: number, comment: string) => Promise<void>
 }
 
 export function RatingSystem({ currentRating, reviewCount, onRatingSubmit }: RatingSystemProps) {
@@ -16,19 +16,25 @@ export function RatingSystem({ currentRating, reviewCount, onRatingSubmit }: Rat
   const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || selectedRating === 0) return
 
     setIsSubmitting(true)
-    await new Promise(resolve => setTimeout(resolve, 300))
+    setError('')
 
-    onRatingSubmit?.(selectedRating, comment)
-    setShowReviewForm(false)
-    setSelectedRating(0)
-    setComment('')
-    setIsSubmitting(false)
+    try {
+      await onRatingSubmit?.(selectedRating, comment)
+      setShowReviewForm(false)
+      setSelectedRating(0)
+      setComment('')
+    } catch {
+      setError('Failed to submit review. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const renderStars = (rating: number, interactive = false) => {
@@ -73,6 +79,12 @@ export function RatingSystem({ currentRating, reviewCount, onRatingSubmit }: Rat
       {showReviewForm && user && (
         <form onSubmit={handleSubmitReview} className="border-t border-slate-700 pt-6">
           <h3 className="text-lg font-semibold text-white mb-4">Write a Review</h3>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+              {error}
+            </div>
+          )}
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-200 mb-2">

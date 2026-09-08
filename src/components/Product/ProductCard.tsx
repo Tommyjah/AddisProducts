@@ -4,6 +4,7 @@ import { ChevronUp, MessageCircle, Users, ExternalLink, Github, DollarSign, Star
 import { Product } from '../../types'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { fetchUserVote } from '../../lib/ProductClient'
 import { formatGithubUrl } from '../../lib/ProductClient'
 
 interface ProductCardProps {
@@ -16,19 +17,30 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
   const { user } = useAuth()
   const [voteState, setVoteState] = useState(false)
   const [localVotes, setLocalVotes] = useState(product.votes)
+  const [voteError, setVoteError] = useState('')
 
   useEffect(() => {
     setLocalVotes(product.votes)
   }, [product.votes])
 
+  useEffect(() => {
+    if (!user || !product.id) return
+    let cancelled = false
+    fetchUserVote(product.id, user.id).then(v => {
+      if (!cancelled) setVoteState(v === 'up')
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [product.id, user])
+
   const handleVote = async () => {
     if (!user || !onVote) return
-
+    setVoteError('')
     try {
       await onVote(product.id)
-      setVoteState(prev => !prev)
+      const updated = await fetchUserVote(product.id, user.id)
+      setVoteState(updated === 'up')
     } catch {
-      // ignore
+      setVoteError('Vote failed. Please try again.')
     }
   }
 
@@ -102,6 +114,9 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
             <span className="text-xs font-medium text-white px-2 py-1 bg-slate-700 rounded-full min-w-[2rem] text-center">
               {localVotes}
             </span>
+            {voteError && (
+              <span className="text-xs text-red-400 max-w-[6rem] text-center">{voteError}</span>
+            )}
           </div>
         </div>
 
