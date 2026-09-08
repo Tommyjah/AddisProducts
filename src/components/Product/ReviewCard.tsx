@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
-import { Star, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { Review } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react'
+import { Star, ThumbsUp } from 'lucide-react'
+import { Review } from '../../types'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface ReviewCardProps {
-  review: Review;
+  review: Review
 }
 
 export function ReviewCard({ review }: ReviewCardProps) {
-  const { user } = useAuth();
-  const [helpful, setHelpful] = useState(review.helpful);
-  const [hasVoted, setHasVoted] = useState(false);
+  const { user } = useAuth()
+  const [helpful, setHelpful] = useState(review.helpful)
+  const [hasVoted, setHasVoted] = useState(false)
 
   const handleHelpful = () => {
-    if (!user || hasVoted) return;
-    setHelpful(prev => prev + 1);
-    setHasVoted(true);
-  };
+    if (!user || hasVoted) return
+    setHelpful(prev => prev + 1)
+    setHasVoted(true)
+  }
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -28,12 +28,11 @@ export function ReviewCard({ review }: ReviewCardProps) {
             : 'text-slate-600'
         }`}
       />
-    ));
-  };
+    ))
+  }
 
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <img
@@ -55,10 +54,8 @@ export function ReviewCard({ review }: ReviewCardProps) {
         </div>
       </div>
 
-      {/* Comment */}
       <p className="text-slate-300 mb-4 leading-relaxed">{review.comment}</p>
 
-      {/* Actions */}
       <div className="flex items-center justify-between">
         <button
           onClick={handleHelpful}
@@ -76,5 +73,5 @@ export function ReviewCard({ review }: ReviewCardProps) {
         </button>
       </div>
     </div>
-  );
+  )
 }

@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, Plus, DollarSign, Clock, FileText, Building, Users, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
 
 export function GovernmentSubmit() {
   useEffect(() => {
@@ -11,7 +10,6 @@ export function GovernmentSubmit() {
   }, []);
 
   const { user } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -50,7 +48,6 @@ export function GovernmentSubmit() {
   const [newTechnicalSpec, setNewTechnicalSpec] = useState('');
   const [newDeliverable, setNewDeliverable] = useState('');
   const [newSuccessCriteria, setNewSuccessCriteria] = useState('');
-  const [newConstraint, setNewConstraint] = useState('');
   const [newPhase, setNewPhase] = useState('');
   const [newStakeholder, setNewStakeholder] = useState('');
   const [dragActive, setDragActive] = useState(false);

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, Mail, Github, Linkedin, MessageCircle, Code, Palette, Megaphone, BarChart, Send, User, Star, Calendar } from 'lucide-react';
+import { ArrowLeft, Users, Github, Linkedin, MessageCircle, Code, Palette, Megaphone, BarChart, Send, User, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -37,13 +37,8 @@ export function Collaborate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  useEffect(() => {
-    if (id) {
-      fetchProduct();
-    }
-  }, [id]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
+    if (!id) return
     try {
       const { data, error } = await supabase
         .from('products')
@@ -61,19 +56,24 @@ export function Collaborate() {
         .single();
 
       if (error) throw error;
-      
+
       const mappedProduct = {
-        ...data,
-        image: data.image_url || ''
-      };
-      
+        ...(data as Record<string, unknown>),
+        image: (data as Record<string, unknown>).image_url || ''
+      } as Product;
+
       setProduct(mappedProduct);
     } catch (error) {
       console.error('Error fetching product:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return
+    fetchProduct()
+  }, [id, fetchProduct]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ export function Collaborate() {
           portfolio_url: portfolio,
           availability: availability,
           status: 'pending'
-        });
+        } as never);
 
       if (error) throw error;
 

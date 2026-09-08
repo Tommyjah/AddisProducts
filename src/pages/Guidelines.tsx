@@ -1,4 +1,3 @@
-import React from 'react';
 import { useEffect } from 'react';
 import { BookOpen, CheckCircle, AlertTriangle, Users, FileText, Shield, Target, Lightbulb } from 'lucide-react';
 

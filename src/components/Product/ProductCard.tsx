@@ -1,41 +1,39 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronUp, ChevronDown, MessageCircle, Users, ExternalLink, Github, DollarSign, Star } from 'lucide-react';
-import { Product } from '../../types';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { ChevronUp, MessageCircle, Users, ExternalLink, Github, DollarSign, Star } from 'lucide-react'
+import { Product } from '../../types'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { formatGithubUrl } from '../../lib/ProductClient'
 
 interface ProductCardProps {
-  product: Product;
-  onVote?: (productId: string) => void;
+  product: Product
+  onVote?: (productId: string) => Promise<void>
 }
 
 export function ProductCard({ product, onVote }: ProductCardProps) {
-  const { t, language } = useLanguage();
-  const { user } = useAuth();
-  const [voteType, setVoteType] = useState<'up' | 'down' | null>(null);
-  const [localVotes, setLocalVotes] = useState(product.votes);
+  const { t, language } = useLanguage()
+  const { user } = useAuth()
+  const [voteState, setVoteState] = useState(false)
+  const [localVotes, setLocalVotes] = useState(product.votes)
 
-  const handleVote = (type: 'up' | 'down') => {
-    if (!user) return;
-    
-    if (voteType === type) {
-      // Remove vote
-      setLocalVotes(prev => type === 'up' ? prev - 1 : prev + 1);
-      setVoteType(null);
-    } else {
-      // Add or change vote
-      const change = voteType === null 
-        ? (type === 'up' ? 1 : -1)
-        : (type === 'up' ? 2 : -2);
-      setLocalVotes(prev => prev + change);
-      setVoteType(type);
-      onVote?.(product.id);
+  useEffect(() => {
+    setLocalVotes(product.votes)
+  }, [product.votes])
+
+  const handleVote = async () => {
+    if (!user || !onVote) return
+
+    try {
+      await onVote(product.id)
+      setVoteState(prev => !prev)
+    } catch {
+      // ignore
     }
-  };
+  }
 
-  const title = language === 'am' && product.titleAm ? product.titleAm : product.title;
-  const description = language === 'am' && product.descriptionAm ? product.descriptionAm : product.description;
+  const title = language === 'am' && product.titleAm ? product.titleAm : product.title
+  const description = language === 'am' && product.descriptionAm ? product.descriptionAm : product.description
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -49,12 +47,11 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
             : 'text-gray-300'
         }`}
       />
-    ));
-  };
+    ))
+  }
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg border border-slate-700 hover:shadow-xl hover:border-cyan-500/50 transition-all duration-300 group overflow-hidden">
-      {/* Product Image */}
       <div className="relative overflow-hidden rounded-t-xl">
         <img
           src={product.image}
@@ -75,7 +72,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
       </div>
 
       <div className="p-6">
-        {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <Link
@@ -89,15 +85,14 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
             </p>
           </div>
 
-          {/* Vote Buttons */}
           <div className="ml-4 flex flex-col items-center space-y-1">
             <button
-              onClick={() => handleVote('up')}
-              disabled={!user}
+              onClick={handleVote}
+              disabled={!user || !onVote}
               className={`p-1 rounded-lg transition-all ${
-                voteType === 'up'
+                voteState
                   ? 'bg-cyan-500 text-white shadow-lg'
-                  : user
+                  : user && onVote
                   ? 'bg-slate-700 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400'
                   : 'bg-slate-700 text-slate-500 cursor-not-allowed'
               }`}
@@ -107,23 +102,9 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
             <span className="text-xs font-medium text-white px-2 py-1 bg-slate-700 rounded-full min-w-[2rem] text-center">
               {localVotes}
             </span>
-            <button
-              onClick={() => handleVote('down')}
-              disabled={!user}
-              className={`p-1 rounded-lg transition-all ${
-                voteType === 'down'
-                  ? 'bg-red-500 text-white shadow-lg'
-                  : user
-                  ? 'bg-slate-700 hover:bg-red-500/20 text-slate-300 hover:text-red-400'
-                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <ChevronDown className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
-        {/* Rating */}
         <div className="flex items-center space-x-2 mb-3">
           <div className="flex items-center space-x-1">
             {renderStars(product.rating)}
@@ -133,7 +114,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
           </span>
         </div>
 
-        {/* Category and Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1 rounded-full border border-slate-600">
             {product.category}
@@ -148,7 +128,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
           ))}
         </div>
 
-        {/* Funding Progress */}
         {product.status === 'funding' && product.fundingGoal && product.currentFunding !== undefined && (
           <div className="mb-4">
             <div className="flex justify-between items-center text-sm text-gray-600 mb-1">
@@ -164,7 +143,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
           </div>
         )}
 
-        {/* User Info */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <img
@@ -176,7 +154,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Collaborators */}
             {product.collaborators.length > 1 && (
               <div className="flex items-center space-x-1 text-xs text-slate-400">
                 <Users className="w-3 h-3" />
@@ -184,11 +161,10 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
               </div>
             )}
 
-            {/* Links */}
             <div className="flex items-center space-x-2">
               {product.github && (
                 <a
-                  href={`https://github.com/${product.github}`}
+                  href={formatGithubUrl(product.github)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-slate-400 hover:text-white transition-colors"
@@ -210,7 +186,6 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
           <Link
             to={`/products/${product.id}`}
@@ -240,5 +215,5 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

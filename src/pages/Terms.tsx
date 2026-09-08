@@ -1,4 +1,3 @@
-import React from 'react';
 import { useEffect } from 'react';
 import { FileText, Users, Shield, AlertTriangle, Scale, Globe, Mail } from 'lucide-react';
 

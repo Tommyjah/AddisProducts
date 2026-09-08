@@ -1,4 +1,3 @@
-import React from 'react';
 import { Calendar, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
 import { GovernmentProposal } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';

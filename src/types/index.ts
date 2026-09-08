@@ -1,9 +1,12 @@
+export type UserRole = 'regular' | 'government' | 'admin'
+export type Language = 'en' | 'am'
+
 export interface User {
   id: string
   name: string
   email: string
   avatar: string
-  role: 'regular' | 'government' | 'admin'
+  role: UserRole
   bio?: string
   github?: string
   twitter?: string
@@ -18,6 +21,7 @@ export interface Product {
   description: string
   descriptionAm?: string
   image: string
+  galleryUrls: string[]
   website?: string
   github?: string
   category: string
@@ -29,10 +33,12 @@ export interface Product {
   user: User
   createdAt: Date
   isFeatured: boolean
-  fundingGoal?: number
-  currentFunding?: number
-  collaborators: User[]
+  fundingGoal: number
+  currentFunding: number
+  pledgersCount: number
   status: 'active' | 'funding' | 'completed'
+  governmentOnly: boolean
+  collaborators: User[]
 }
 
 export interface Review {
@@ -40,7 +46,7 @@ export interface Review {
   rating: number
   comment: string
   userId: string
-  user: User
+  user: Pick<User, 'id' | 'name' | 'avatar'>
   productId: string
   createdAt: Date
   helpful: number
@@ -50,7 +56,7 @@ export interface Vote {
   id: string
   userId: string
   productId: string
-  type: 'up' | 'down'
+  voteType: 'up' | 'down'
   createdAt: Date
 }
 
@@ -61,8 +67,8 @@ export interface Pledge {
   amount: number
   message?: string
   status: 'pledged' | 'paid' | 'cancelled'
-  chapaTransactionId?: string
   createdAt: Date
+  user?: Pick<User, 'id' | 'name' | 'avatar'>
 }
 
 export interface CollaborationRequest {
@@ -95,4 +101,38 @@ export interface GovernmentProposal {
   reviewNotes?: string
 }
 
-export type Language = 'en' | 'am'
+export interface VoteState {
+  voted: boolean
+  votesCount: number
+}
+
+export interface ProductInput {
+  title: string
+  titleAm?: string
+  description: string
+  descriptionAm?: string
+  imageUrl?: string
+  galleryUrls?: string[]
+  websiteUrl?: string
+  githubUrl?: string
+  category: string
+  tags?: string[]
+  fundingGoal?: number
+  status?: 'active' | 'funding' | 'completed'
+}
+
+export type UserProfile = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  github_username: string | null
+  twitter_username: string | null
+  linkedin_url: string | null
+  website_url: string | null
+  role: UserRole
+  email: string | null
+  is_verified: boolean | null
+  created_at: string
+  updated_at: string
+}

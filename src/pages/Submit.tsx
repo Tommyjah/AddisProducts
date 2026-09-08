@@ -1,68 +1,51 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef } from 'react'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { createProduct } from '../lib/ProductClient'
+import { createProduct, uploadImage } from '../lib/ProductClient'
+import type { ProductInput } from '../types'
 
 export function Submit() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ProductInput>({
     title: '',
-    titleAm: '',
     description: '',
-    descriptionAm: '',
     category: '',
-    tags: [] as string[],
-    website: '',
-    github: '',
-    image: '',
-    fundingGoal: '',
-    isFunding: false,
-    timeline: '',
-    teamSize: '1',
-    currentStage: 'idea',
-    targetAudience: '',
-    businessModel: '',
-    launchDate: '',
-    socialLinks: { twitter: '', linkedin: '', telegram: '', youtube: '' },
+    tags: [],
+    websiteUrl: '',
+    githubUrl: '',
+    imageUrl: '',
+    galleryUrls: [],
+    fundingGoal: 0,
+    status: 'active',
   })
+
+  const [titleAm, setTitleAm] = useState('')
+  const [descriptionAm, setDescriptionAm] = useState('')
+  const [isFunding, setIsFunding] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const categories = [
     'Mobile App', 'Web Application', 'AI/ML', 'Blockchain', 'FinTech',
     'HealthTech', 'EdTech', 'AgTech', 'E-commerce', 'SaaS', 'Gaming', 'IoT', 'DevTools', 'Other',
   ]
 
-  const stages = [
-    { value: 'idea', label: 'Idea Stage' },
-    { value: 'prototype', label: 'Prototype' },
-    { value: 'mvp', label: 'MVP' },
-    { value: 'beta', label: 'Beta Testing' },
-    { value: 'launched', label: 'Launched' },
-    { value: 'scaling', label: 'Scaling' },
-  ]
-
-  const businessModels = [
-    'Freemium', 'Subscription', 'One-time Purchase', 'Advertising',
-    'Commission', 'Enterprise', 'Open Source', 'Non-profit', 'Other',
-  ]
-
   if (!user) {
-    navigate('/login')
-    return null
+    return <Navigate to="/login" replace />
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
       setForm(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }))
-    } else if (name.includes('.')) {
-      const [parent, child] = name.split('.')
-      setForm(prev => ({ ...prev, [parent]: { ...prev[parent as keyof typeof prev], [child]: value } }))
+    } else if (name === 'fundingGoal') {
+      setForm(prev => ({ ...prev, [name]: parseFloat(value) || 0 }))
     } else {
       setForm(prev => ({ ...prev, [name]: value }))
     }
@@ -70,14 +53,38 @@ export function Submit() {
 
   const addTag = () => {
     const tagInput = document.getElementById('tagInput') as HTMLInputElement
-    if (tagInput && tagInput.value.trim() && !form.tags.includes(tagInput.value.trim())) {
-      setForm(prev => ({ ...prev, tags: [...prev.tags, tagInput.value.trim()] }))
-      tagInput.value = ''
+    const val = tagInput?.value.trim()
+    if (val && !form.tags?.includes(val)) {
+      setForm(prev => ({ ...prev, tags: [...(prev.tags || []), val] }))
+      if (tagInput) tagInput.value = ''
     }
   }
 
   const removeTag = (tag: string) => {
-    setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))
+    setForm(prev => ({ ...prev, tags: prev.tags?.filter(t => t !== tag) || [] }))
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+    try {
+      const url = await uploadImage(file, user.id)
+      setForm(prev => ({ ...prev, imageUrl: url, galleryUrls: [url] }))
+      setImagePreview(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setForm(prev => ({ ...prev, imageUrl: url, galleryUrls: url ? [url] : [] }))
+    setImagePreview(url || null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,60 +97,22 @@ export function Submit() {
 
     setSubmitting(true)
     try {
-      await createProduct(
-        {
-          title: form.title,
-          title_am: form.titleAm || null,
-          description: form.description,
-          description_am: form.descriptionAm || null,
-          image_url: form.image || null,
-          website_url: form.website || null,
-          github_url: form.github || null,
-          category: form.category,
-          tags: form.tags.length > 0 ? form.tags : null,
-          funding_goal: form.isFunding ? parseFloat(form.fundingGoal) || 0 : null,
-          status: form.isFunding ? 'funding' : 'active',
-          government_only: false,
-        },
-        user.id
-      )
-      setSubmitted(true)
-    } catch (err: any) {
+      const input: ProductInput = {
+        ...form,
+        titleAm: titleAm || undefined,
+        descriptionAm: descriptionAm || undefined,
+        status: isFunding ? 'funding' : (form.status || 'active'),
+        fundingGoal: isFunding ? (form.fundingGoal || 0) : undefined,
+      }
+
+      const product = await createProduct(input, user.id)
+      navigate(`/products/${product.id}`)
+    } catch (err) {
       console.error('Submit failed:', err)
-      setError(err.message || 'Failed to submit product. Please try again.')
+      setError(err instanceof Error ? err.message : 'Failed to submit product. Please try again.')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-4">Product Submitted!</h1>
-          <p className="text-slate-300 mb-8">Your product is now live on Addis Product.</p>
-          <div className="space-x-4">
-            <button
-              onClick={() => { setSubmitted(false); setStep(1); setForm({ title: '', titleAm: '', description: '', descriptionAm: '', category: '', tags: [], website: '', github: '', image: '', fundingGoal: '', isFunding: false, timeline: '', teamSize: '1', currentStage: 'idea', targetAudience: '', businessModel: '', launchDate: '', socialLinks: { twitter: '', linkedin: '', telegram: '', youtube: '' } }); }}
-              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-600 transition-all shadow-lg"
-            >
-              Submit Another
-            </button>
-            <button
-              onClick={() => navigate('/products')}
-              className="bg-slate-800 text-white px-6 py-3 rounded-lg font-medium hover:bg-slate-700 transition-all border border-slate-600"
-            >
-              View Products
-            </button>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -156,7 +125,6 @@ export function Submit() {
           <p className="text-slate-300 text-lg">Share your innovation with the Ethiopian tech community</p>
         </div>
 
-        {/* Step indicator */}
         <div className="flex items-center justify-center mb-8">
           {[1, 2, 3].map(s => (
             <div key={s} className="flex items-center">
@@ -173,7 +141,6 @@ export function Submit() {
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">{error}</div>
           )}
 
-          {/* Step 1: Basic Info */}
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white mb-6">Basic Information</h2>
@@ -185,7 +152,7 @@ export function Submit() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">Project Title (Amharic)</label>
-                  <input type="text" name="titleAm" value={form.titleAm} onChange={handleChange}
+                  <input type="text" value={titleAm} onChange={e => setTitleAm(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="የፕሮጀክት ስም" />
                 </div>
               </div>
@@ -197,7 +164,7 @@ export function Submit() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">Description (Amharic)</label>
-                  <textarea name="descriptionAm" value={form.descriptionAm} onChange={handleChange} rows={5}
+                  <textarea value={descriptionAm} onChange={e => setDescriptionAm(e.target.value)} rows={5}
                     className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="የፕሮጀክት መግለጫ" />
                 </div>
               </div>
@@ -211,112 +178,91 @@ export function Submit() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">Current Stage *</label>
-                  <select name="currentStage" required value={form.currentStage} onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
-                    {stages.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">Team Size</label>
-                  <input type="number" name="teamSize" min="1" max="100" value={form.teamSize} onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">Target Audience</label>
-                <input type="text" name="targetAudience" value={form.targetAudience} onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="Who is your target audience? (e.g., Small businesses, Students, Farmers)" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">Tags</label>
-                <div className="flex gap-2">
-                  <input id="tagInput" type="text" value=""
-                    className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
-                    placeholder="Add a tag..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }} />
-                  <button type="button" onClick={addTag}
-                    className="px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors">Add</button>
-                </div>
-                {form.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {form.tags.map(t => (
-                      <span key={t} className="flex items-center gap-1 bg-cyan-500/20 text-cyan-300 text-sm px-3 py-1 rounded-full">
-                        {t} <button type="button" onClick={() => removeTag(t)} className="text-cyan-400 hover:text-cyan-200">×</button>
-                      </span>
-                    ))}
+                  <label className="block text-sm font-medium text-slate-200 mb-2">Tags</label>
+                  <div className="flex gap-2">
+                    <input id="tagInput" type="text" value=""
+                      className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                      placeholder="Add a tag..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }} />
+                    <button type="button" onClick={addTag}
+                      className="px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors">Add</button>
                   </div>
-                )}
+                  {form.tags && form.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {form.tags.map(t => (
+                        <span key={t} className="flex items-center gap-1 bg-cyan-500/20 text-cyan-300 text-sm px-3 py-1 rounded-full">
+                          {t} <button type="button" onClick={() => removeTag(t)} className="text-cyan-400 hover:text-cyan-200">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Step 2: Links & Media */}
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white mb-6">Links & Media</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">Website URL</label>
-                  <input type="url" name="website" value={form.website} onChange={handleChange}
+                  <input type="url" name="websiteUrl" value={form.websiteUrl} onChange={handleChange}
                     className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="https://example.com" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">GitHub Repository</label>
-                  <input type="text" name="github" value={form.github} onChange={handleChange}
+                  <input type="text" name="githubUrl" value={form.githubUrl} onChange={handleChange}
                     className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="username/repo" />
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">Product Image URL</label>
-                <input type="url" name="image" value={form.image} onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="https://images.pexels.com/..." />
-                <p className="text-xs text-slate-400 mt-1">Paste an image URL (from Pexels, Unsplash, etc.)</p>
+                <label className="block text-sm font-medium text-slate-200 mb-2">Product Image</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="block w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-500 file:text-white hover:file:bg-cyan-600"
+                    />
+                    {uploading && <p className="text-xs text-cyan-300 mt-2">Uploading...</p>}
+                  </div>
+                  <div>
+                    <input type="url" value={form.imageUrl} onChange={handleUrlChange}
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="Or paste an image URL" />
+                  </div>
+                </div>
+                {imagePreview && (
+                  <div className="mt-4">
+                    <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg border border-slate-700" />
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 3: Funding (optional) */}
           {step === 3 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white mb-6">Funding (Optional)</h2>
               <div className="flex items-center gap-3 p-4 bg-slate-700 rounded-lg">
-                <input type="checkbox" id="isFunding" checked={form.isFunding} onChange={handleChange}
+                <input type="checkbox" id="isFunding" checked={isFunding} onChange={e => setIsFunding(e.target.checked)}
                   className="text-cyan-500 focus:ring-cyan-500" />
                 <label htmlFor="isFunding" className="text-slate-200 cursor-pointer">Enable funding for this product</label>
               </div>
-              {form.isFunding && (
+              {isFunding && (
                 <div className="space-y-4 pl-6 border-l-2 border-cyan-500/30">
                   <div>
                     <label className="block text-sm font-medium text-slate-200 mb-2">Funding Goal (USD)</label>
-                    <input type="number" name="fundingGoal" min="1" value={form.fundingGoal} onChange={handleChange}
+                    <input type="number" name="fundingGoal" min="1" value={form.fundingGoal || 0} onChange={handleChange}
                       className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="50000" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-2">Timeline</label>
-                    <input type="text" name="timeline" value={form.timeline} onChange={handleChange}
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" placeholder="e.g., 6 months" />
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">Business Model</label>
-                  <select name="businessModel" value={form.businessModel} onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none">
-                    <option value="">Select...</option>
-                    {businessModels.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">Launch Date</label>
-                  <input type="date" name="launchDate" value={form.launchDate} onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" />
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Navigation */}
           <div className="flex items-center justify-between pt-8 border-t border-slate-700 mt-8">
             <button type="button" onClick={() => setStep(s => s - 1)} disabled={step === 1}
               className="px-6 py-3 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

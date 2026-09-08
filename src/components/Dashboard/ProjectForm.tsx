@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  category: string;
+  tags: string[];
+  status: string;
+  funding_goal: number;
+  current_funding: number;
+  website_url: string;
+  github_url: string;
+}
+
 interface ProjectFormProps {
   isOpen: boolean;
   onClose: () => void;
-  project: any | null;
-  onSave: (data: any) => Promise<void>;
+  project: Project | null;
+  onSave: (data: Partial<Project>) => Promise<void>;
 }
 
 export function ProjectForm({ isOpen, onClose, project, onSave }: ProjectFormProps) {

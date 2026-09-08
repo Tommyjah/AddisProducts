@@ -251,6 +251,118 @@ export type Database = {
           github_url?: string
         }
       }
+      government_proposals: {
+        Row: {
+          id: string
+          product_id: string | null
+          submitted_by: string
+          title: string | null
+          description: string | null
+          status: string
+          bid_amount: number | null
+          notes: string | null
+          category: string | null
+          timeline: string | null
+          requirements: string[] | null
+          created_at: string
+          reviewed_at: string | null
+          review_notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id?: string
+          submitted_by?: string
+          title?: string
+          description?: string
+          status?: string
+          bid_amount?: number
+          notes?: string
+          category?: string
+          timeline?: string
+          requirements?: string[]
+        }
+        Update: {
+          product_id?: string
+          title?: string
+          description?: string
+          status?: string
+          bid_amount?: number
+          notes?: string
+          category?: string
+          timeline?: string
+          requirements?: string[]
+          reviewed_at?: string
+          review_notes?: string
+        }
+      }
+      comments: {
+        Row: {
+          id: string
+          product_id: string
+          user_id: string
+          content: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          user_id: string
+          content?: string
+        }
+        Update: {
+          content?: string
+        }
+      }
+      payments: {
+        Row: {
+          id: string
+          product_id: string
+          user_id: string
+          amount: number | null
+          status: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          user_id: string
+          amount?: number
+          status?: string
+        }
+        Update: {
+          amount?: number
+          status?: string
+        }
+      }
+      collaborations: {
+        Row: {
+          id: string
+          product_id: string
+          user_id: string
+          role: string
+          message: string | null
+          experience: string | null
+          portfolio_url: string | null
+          availability: string | null
+          status: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          user_id: string
+          role: string
+          message?: string
+          experience?: string
+          portfolio_url?: string
+          availability?: string
+          status?: string
+        }
+        Update: {
+          status?: string
+        }
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

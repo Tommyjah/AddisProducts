@@ -315,27 +315,25 @@ CREATE POLICY "collab_owner_update_status" ON public.collaborations FOR UPDATE T
     OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
   );
 
--- ---- funding ----
-DROP POLICY IF EXISTS "fund_view_anon" ON public.funding;
-DROP POLICY IF EXISTS "fund_view_auth" ON public.funding;
-DROP POLICY IF EXISTS "fund_insert_auth" ON public.funding;
-DROP POLICY IF EXISTS "fund_update_own" ON public.funding;
-DROP POLICY IF EXISTS "fund_delete_own" ON public.funding;
-DROP POLICY IF EXISTS "fund_owner_update_status" ON public.funding;
+-- ---- pledges ----
+DROP POLICY IF EXISTS "pledge_view_anon" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_view_auth" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_insert_auth" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_update_own" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_delete_own" ON public.pledges;
 
-CREATE POLICY "fund_view_anon" ON public.funding FOR SELECT TO anon USING (true);
-CREATE POLICY "fund_view_auth" ON public.funding FOR SELECT TO authenticated USING (true);
-CREATE POLICY "fund_insert_auth" ON public.funding FOR INSERT TO authenticated
+CREATE POLICY "pledge_view_anon" ON public.pledges FOR SELECT TO anon USING (true);
+CREATE POLICY "pledge_view_auth" ON public.pledges FOR SELECT TO authenticated USING (true);
+CREATE POLICY "pledge_insert_auth" ON public.pledges FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "fund_update_own" ON public.funding FOR UPDATE TO authenticated
+CREATE POLICY "pledge_update_own" ON public.pledges FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
-CREATE POLICY "fund_delete_own" ON public.funding FOR DELETE TO authenticated
+CREATE POLICY "pledge_delete_own" ON public.pledges FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
-CREATE POLICY "fund_owner_update_status" ON public.funding FOR UPDATE TO authenticated
-  USING (
-    auth.uid() = (SELECT user_id FROM public.products WHERE id = product_id)
-    OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
+
+CREATE INDEX IF NOT EXISTS idx_pledges_product_id ON public.pledges(product_id);
+CREATE INDEX IF NOT EXISTS idx_pledges_user_id ON public.pledges(user_id);
+CREATE INDEX IF NOT EXISTS idx_pledges_status ON public.pledges(status);
 
 -- ---- payments ----
 DROP POLICY IF EXISTS "pay_view_own" ON public.payments;
@@ -434,28 +432,28 @@ CREATE TRIGGER on_reviews_change
   AFTER INSERT OR UPDATE OR DELETE ON public.reviews
   FOR EACH ROW EXECUTE FUNCTION trg_update_reviews();
 
--- funding → products.current_funding + pledgers_count
-CREATE OR REPLACE FUNCTION trg_update_funding()
+-- pledges → products.current_funding + pledgers_count
+CREATE OR REPLACE FUNCTION trg_update_pledges()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     UPDATE public.products SET
-      current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.funding WHERE product_id = NEW.product_id AND payment_status = 'confirmed'),
-      pledgers_count = (SELECT COUNT(*) FROM public.funding WHERE product_id = NEW.product_id AND payment_status = 'confirmed'),
+      current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.pledges WHERE product_id = NEW.product_id AND status IN ('pledged', 'paid')),
+      pledgers_count = (SELECT COUNT(DISTINCT user_id) FROM public.pledges WHERE product_id = NEW.product_id AND status IN ('pledged', 'paid')),
       updated_at = now()
     WHERE id = NEW.product_id;
   ELSIF TG_OP = 'UPDATE' THEN
-    IF OLD.payment_status != NEW.payment_status OR OLD.amount != NEW.amount THEN
+    IF OLD.status != NEW.status OR OLD.amount != NEW.amount THEN
       UPDATE public.products SET
-        current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.funding WHERE product_id = NEW.product_id AND payment_status = 'confirmed'),
-        pledgers_count = (SELECT COUNT(*) FROM public.funding WHERE product_id = NEW.product_id AND payment_status = 'confirmed'),
+        current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.pledges WHERE product_id = NEW.product_id AND status IN ('pledged', 'paid')),
+        pledgers_count = (SELECT COUNT(DISTINCT user_id) FROM public.pledges WHERE product_id = NEW.product_id AND status IN ('pledged', 'paid')),
         updated_at = now()
       WHERE id = NEW.product_id;
     END IF;
   ELSIF TG_OP = 'DELETE' THEN
     UPDATE public.products SET
-      current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.funding WHERE product_id = OLD.product_id AND payment_status = 'confirmed'),
-      pledgers_count = (SELECT COUNT(*) FROM public.funding WHERE product_id = OLD.product_id AND payment_status = 'confirmed'),
+      current_funding = (SELECT COALESCE(SUM(amount), 0) FROM public.pledges WHERE product_id = OLD.product_id AND status IN ('pledged', 'paid')),
+      pledgers_count = (SELECT COUNT(DISTINCT user_id) FROM public.pledges WHERE product_id = OLD.product_id AND status IN ('pledged', 'paid')),
       updated_at = now()
     WHERE id = OLD.product_id;
   END IF;
@@ -463,10 +461,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS on_funding_change ON public.funding;
-CREATE TRIGGER on_funding_change
-  AFTER INSERT OR UPDATE OR DELETE ON public.funding
-  FOR EACH ROW EXECUTE FUNCTION trg_update_funding();
+DROP TRIGGER IF EXISTS on_pledges_change ON public.pledges;
+CREATE TRIGGER on_pledges_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.pledges
+  FOR EACH ROW EXECUTE FUNCTION trg_update_pledges();
 
 -- featured_campaigns → products.is_featured
 CREATE OR REPLACE FUNCTION trg_toggle_featured()
@@ -668,9 +666,9 @@ CREATE INDEX IF NOT EXISTS idx_collab_product_id ON public.collaborations(produc
 CREATE INDEX IF NOT EXISTS idx_collab_user_id ON public.collaborations(user_id);
 CREATE INDEX IF NOT EXISTS idx_collab_status ON public.collaborations(status);
 
-CREATE INDEX IF NOT EXISTS idx_funding_product_id ON public.funding(product_id);
-CREATE INDEX IF NOT EXISTS idx_funding_user_id ON public.funding(user_id);
-CREATE INDEX IF NOT EXISTS idx_funding_status ON public.funding(payment_status);
+CREATE INDEX IF NOT EXISTS idx_pledges_product_id ON public.pledges(product_id);
+CREATE INDEX IF NOT EXISTS idx_pledges_user_id ON public.pledges(user_id);
+CREATE INDEX IF NOT EXISTS idx_pledges_status ON public.pledges(status);
 
 CREATE INDEX IF NOT EXISTS idx_payments_product_id ON public.payments(product_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user_id ON public.payments(user_id);
@@ -683,3 +681,20 @@ CREATE INDEX IF NOT EXISTS idx_featured_product_id ON public.featured_campaigns(
 CREATE INDEX IF NOT EXISTS idx_featured_user_id ON public.featured_campaigns(user_id);
 CREATE INDEX IF NOT EXISTS idx_featured_status ON public.featured_campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_featured_end_date ON public.featured_campaigns(end_date);
+
+-- ============================================================================
+-- PHASE 7: STORAGE POLICIES (requires a bucket named "products" to exist)
+-- Create the "products" bucket in Supabase Dashboard → Storage before applying.
+-- ============================================================================
+
+DROP POLICY IF EXISTS "storage_products_select_anon" ON storage.objects;
+DROP POLICY IF EXISTS "storage_products_select_auth" ON storage.objects;
+DROP POLICY IF EXISTS "storage_products_insert_auth" ON storage.objects;
+DROP POLICY IF EXISTS "storage_products_update_own" ON storage.objects;
+DROP POLICY IF EXISTS "storage_products_delete_own" ON storage.objects;
+
+CREATE POLICY "storage_products_select_anon" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'products');
+CREATE POLICY "storage_products_select_auth" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'products');
+CREATE POLICY "storage_products_insert_auth" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "storage_products_update_own" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "storage_products_delete_own" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);

@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Filter, Building, DollarSign, Clock, FileText, Users, Shield, Zap } from 'lucide-react'
+import { Plus, Filter, DollarSign, Clock, FileText } from 'lucide-react'
 import { fetchGovernmentProposals } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import type { GovernmentProposal } from '../types'
 
 export function Government() {
   const { t } = useLanguage()
   const { user } = useAuth()
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
-  const [proposals, setProposals] = useState<any[]>([])
+  const [proposals, setProposals] = useState<GovernmentProposal[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { Language } from '../types';
 
 interface LanguageContextType {
@@ -8,16 +8,6 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-
-// Type-safe translation helper — returns the key itself if not found (no crash)
-function safeT(
-  lang: Language,
-  key: string,
-  translations: Record<string, string>
-): string {
-  const value = translations[key]
-  return typeof value === 'string' ? value : key
-}
 
 const translations = {
   en: {

@@ -50,7 +50,7 @@ export function Register() {
 
       if (data.user) {
         const tables = ['users', 'profiles']
-        let profileError: any = null
+        let profileError: Error | null = null
 
         for (const table of tables) {
           const { error } = await supabase
@@ -61,8 +61,8 @@ export function Register() {
                 full_name: fullName,
                 email,
               },
-            ])
-          
+            ] as never)
+
           if (!error) {
             profileError = null
             break
@@ -74,8 +74,8 @@ export function Register() {
 
         navigate('/login');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during registration');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during registration');
       console.error('Registration error:', err);
     } finally {
       setRegistering(false);
@@ -85,16 +85,16 @@ export function Register() {
   const handleGoogleSignUp = async () => {
     try {
       await loginWithGoogle();
-    } catch (err: any) {
-      setError(err.message || 'Google sign up failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign up failed');
     }
   };
 
   const handleGitHubSignUp = async () => {
     try {
       await loginWithGitHub();
-    } catch (err: any) {
-      setError(err.message || 'GitHub sign up failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'GitHub sign up failed');
     }
   };
 

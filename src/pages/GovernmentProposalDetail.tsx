@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Calendar, DollarSign, Clock, FileText, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react'
+import { useParams, Link } from 'react-router-dom'
+import { ArrowLeft, DollarSign, Clock, FileText, CheckCircle, XCircle, AlertCircle, Users, Building, Zap } from 'lucide-react'
 import { fetchGovernmentProposals } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
+import type { GovernmentProposal } from '../types'
 
 export function GovernmentProposalDetail() {
   const { id } = useParams<{ id: string }>()
-  const { t, language } = useLanguage()
-  const navigate = useNavigate()
-  const [proposals, setProposals] = useState<any[]>([])
-  const [proposal, setProposal] = useState<any>(null)
+  const { t } = useLanguage()
+  const [proposal, setProposal] = useState<GovernmentProposal | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -17,7 +16,6 @@ export function GovernmentProposalDetail() {
     const load = async () => {
       try {
         const data = await fetchGovernmentProposals()
-        setProposals(data)
         const found = data.find(p => p.id === id)
         setProposal(found || null)
       } catch (err) {
@@ -226,7 +224,7 @@ export function GovernmentProposalDetail() {
                       <div className="bg-slate-700 rounded-lg p-6">
                         <h3 className="text-lg font-semibold text-white mb-4">Budget Breakdown</h3>
                         <div className="space-y-4">
-                          {[['Development', 0.6], ['Testing & QA', 0.2], ['Deployment & Training', 0.2]].map(([label, pct]) => (
+                          {([['Development', 0.6], ['Testing & QA', 0.2], ['Deployment & Training', 0.2]] as [string, number][]).map(([label, pct]) => (
                             <div key={label} className="space-y-1">
                               <div className="flex justify-between">
                                 <span className="text-slate-300">{label}</span>

@@ -1,59 +1,93 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, ExternalLink, Github, Users, Calendar, Tag, ChevronUp, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronUp } from 'lucide-react'
 import { RatingSystem } from '../components/Product/RatingSystem'
 import { ReviewCard } from '../components/Product/ReviewCard'
-import { fetchProduct, fetchReviews, voteProduct, submitReview } from '../lib/ProductClient'
+import { fetchProduct, fetchReviews, voteProduct, fetchUserVote, submitReview } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import type { Product, Review, VoteState } from '../types'
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>()
-  const { t, language } = useLanguage()
+  const { language } = useLanguage()
   const { user } = useAuth()
-  const [product, setProduct] = useState<any>(null)
-  const [reviews, setReviews] = useState<any[]>([])
-  const [voteType, setVoteType] = useState<'up' | 'down' | null>(null)
-  const [localVotes, setLocalVotes] = useState(0)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [voteState, setVoteState] = useState<VoteState>({ voted: false, votesCount: 0 })
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!id) return
+    let cancelled = false
+
     const load = async () => {
-      if (!id) return
+      setLoading(true)
+      setError(null)
       try {
         const [prod, revs] = await Promise.all([
           fetchProduct(id),
           fetchReviews(id),
         ])
-        setProduct(prod)
+
+        if (cancelled) return
+
+        if (!prod) {
+          setProduct(null)
+          setError('not_found')
+        } else {
+          setProduct(prod)
+          setVoteState({ voted: prod.votes > 0, votesCount: prod.votes })
+        }
         setReviews(revs)
-        setLocalVotes(prod.votes || 0)
       } catch (err) {
+        if (cancelled) return
         console.error('Failed to load product:', err)
+        setError('load_error')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
+
     load()
+
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
-  const handleVote = async (type: 'up' | 'down') => {
-    if (!user || !product) return
-    if (voteType === type) {
-      setLocalVotes(prev => type === 'up' ? prev - 1 : prev + 1)
-      setVoteType(null)
-      return
+  useEffect(() => {
+    if (!id || !user) return
+    let cancelled = false
+
+    const loadVote = async () => {
+      try {
+        const userVote = await fetchUserVote(id, user.id)
+        if (cancelled) return
+        setVoteState(prev => ({ ...prev, voted: userVote === 'up' }))
+      } catch {
+        // ignore
+      }
     }
+
+    loadVote()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, user])
+
+  const handleVote = async () => {
+    if (!user || !product || voting) return
+
     setVoting(true)
     try {
-      await voteProduct(product.id, user.id)
-      const newVotes = type === 'up' ? localVotes + 1 : localVotes - 1
-      setLocalVotes(newVotes)
-      setVoteType(type)
-      // Refresh product
+      const result = await voteProduct(product.id, user.id)
+      setVoteState(result)
       const updated = await fetchProduct(product.id)
-      setProduct(updated)
+      if (updated) setProduct(updated)
     } catch (err) {
       console.error('Vote failed:', err)
     } finally {
@@ -69,11 +103,26 @@ export function ProductDetail() {
     )
   }
 
-  if (!product) {
+  if (error === 'not_found' || !product) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Product not found</h1>
+          <p className="text-slate-400 mb-6">The product you are looking for does not exist or has been removed.</p>
+          <Link to="/products" className="text-cyan-400 hover:text-cyan-300">
+            ← Back to Products
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (error === 'load_error') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Something went wrong</h1>
+          <p className="text-slate-400 mb-6">Failed to load product details. Please try again later.</p>
           <Link to="/products" className="text-cyan-400 hover:text-cyan-300">
             ← Back to Products
           </Link>
@@ -84,6 +133,7 @@ export function ProductDetail() {
 
   const title = language === 'am' && product.titleAm ? product.titleAm : product.title
   const description = language === 'am' && product.descriptionAm ? product.descriptionAm : product.description
+  const gallery = product.galleryUrls?.length ? product.galleryUrls : [product.image]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8">
@@ -97,9 +147,7 @@ export function ProductDetail() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Product Header */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
               <img
                 src={product.image}
@@ -114,7 +162,6 @@ export function ProductDetail() {
                   </div>
                 </div>
 
-                {/* Tags */}
                 <div className="flex flex-wrap items-center gap-2 mb-6">
                   <span className="bg-slate-700 text-slate-200 text-sm font-medium px-3 py-1 rounded-full border border-slate-600">
                     {product.category}
@@ -130,7 +177,22 @@ export function ProductDetail() {
                   ))}
                 </div>
 
-                {/* User Info */}
+                {product.galleryUrls.length > 1 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-slate-200 mb-3">Gallery</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {gallery.map((src: string, idx: number) => (
+                        <img
+                          key={idx}
+                          src={src}
+                          alt={`${title} ${idx + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border border-slate-700"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between border-t border-slate-700 pt-4">
                   <div className="flex items-center space-x-3">
                     <img
@@ -151,7 +213,6 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Rating System — wired to real reviews */}
             <RatingSystem
               productId={product.id}
               currentRating={product.rating || 0}
@@ -162,18 +223,19 @@ export function ProductDetail() {
                   await submitReview(product.id, user.id, rating, comment)
                   const updated = await fetchReviews(product.id)
                   setReviews(updated)
+                  const refreshed = await fetchProduct(product.id)
+                  if (refreshed) setProduct(refreshed)
                 } catch (err) {
                   console.error('Review submission failed:', err)
                 }
               }}
             />
 
-            {/* Reviews */}
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">Reviews</h2>
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review: any) => (
+                  {reviews.map((review: Review) => (
                     <ReviewCard key={review.id} review={review} />
                   ))}
                 </div>
@@ -185,17 +247,15 @@ export function ProductDetail() {
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Voting */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Vote for this product</h3>
               <div className="flex items-center justify-center space-x-4">
                 <button
-                  onClick={() => handleVote('up')}
+                  onClick={handleVote}
                   disabled={!user || voting}
                   className={`flex flex-col items-center p-4 rounded-lg transition-all ${
-                    voteType === 'up'
+                    voteState.voted
                       ? 'bg-cyan-500 text-white shadow-lg'
                       : user
                       ? 'bg-slate-700 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400'
@@ -207,28 +267,15 @@ export function ProductDetail() {
                 </button>
 
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white">{localVotes}</div>
+                  <div className="text-2xl font-bold text-white">{voteState.votesCount}</div>
                   <div className="text-sm text-slate-400">votes</div>
                 </div>
-
-                <button
-                  onClick={() => handleVote('down')}
-                  disabled={!user || voting}
-                  className={`flex flex-col items-center p-4 rounded-lg transition-all ${
-                    voteType === 'down'
-                      ? 'bg-red-500 text-white shadow-lg'
-                      : user
-                      ? 'bg-slate-700 hover:bg-red-500/20 text-slate-300 hover:text-red-400'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  <ChevronDown className="w-6 h-6" />
-                  <span className="text-sm font-medium mt-1">Downvote</span>
-                </button>
               </div>
+              {!user && (
+                <p className="text-xs text-slate-400 text-center mt-3">Sign in to vote</p>
+              )}
             </div>
 
-            {/* Links */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Links</h3>
               <div className="space-y-3">
@@ -245,7 +292,7 @@ export function ProductDetail() {
                 )}
                 {product.github && (
                   <a
-                    href={`https://github.com/${product.github}`}
+                    href={product.github}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-3 p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
@@ -257,24 +304,23 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Funding Progress */}
             {product.status === 'funding' && product.fundingGoal > 0 && (
               <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Funding Progress</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-300">Raised: ${product.currentFunding?.toLocaleString()}</span>
-                    <span className="text-slate-300">Goal: ${product.fundingGoal?.toLocaleString()}</span>
+                    <span className="text-slate-300">Raised: ${product.currentFunding.toLocaleString()}</span>
+                    <span className="text-slate-300">Goal: ${product.fundingGoal.toLocaleString()}</span>
                   </div>
                   <div className="w-full bg-slate-700 rounded-full h-3">
                     <div
                       className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-3 rounded-full transition-all shadow-lg"
-                      style={{ width: `${Math.min(((product.currentFunding || 0) / product.fundingGoal) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((product.currentFunding / product.fundingGoal) * 100, 100)}%` }}
                     />
                   </div>
                   <div className="text-center">
                     <span className="text-2xl font-bold text-white">
-                      {Math.round(((product.currentFunding || 0) / product.fundingGoal) * 100)}%
+                      {Math.round((product.currentFunding / product.fundingGoal) * 100)}%
                     </span>
                     <p className="text-sm text-slate-400">funded</p>
                   </div>
@@ -288,7 +334,6 @@ export function ProductDetail() {
               </div>
             )}
 
-            {/* Collaborate Button */}
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Join the Team</h3>
               <p className="text-slate-300 mb-4">

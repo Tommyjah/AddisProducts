@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, Trash2, Plus, Mail, Globe, Github, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,7 +22,7 @@ interface Project {
 }
 
 export function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,15 +30,7 @@ export function Dashboard() {
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    loadProjects();
-  }, [user, navigate]);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
@@ -54,7 +46,15 @@ export function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    loadProjects();
+  }, [user, navigate, loadProjects]);
 
   const handleDeleteProject = async (projectId: string) => {
     if (!window.confirm('Are you sure you want to delete this project?')) return;
@@ -73,14 +73,14 @@ export function Dashboard() {
     }
   };
 
-  const handleProjectSave = async (projectData: any) => {
+  const handleProjectSave = async (projectData: Partial<Project>) => {
     if (!user) return;
 
     try {
       if (editingProject) {
         const { error } = await supabase
           .from('user_projects')
-          .update(projectData)
+          .update(projectData as never)
           .eq('id', editingProject.id);
 
         if (error) throw error;
@@ -88,7 +88,7 @@ export function Dashboard() {
       } else {
         const { data, error } = await supabase
           .from('user_projects')
-          .insert([{ ...projectData, user_id: user.id }])
+          .insert([{ ...projectData, user_id: user.id }] as never)
           .select();
 
         if (error) throw error;

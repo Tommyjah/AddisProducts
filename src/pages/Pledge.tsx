@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, DollarSign, CreditCard, Wallet, Shield, Users, Target, TrendingUp, Heart, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchProduct, createPledge, fetchPledges } from '../lib/ProductClient'
+import type { Product, Pledge } from '../types'
 
 export function Pledge() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const [product, setProduct] = useState<any>(null)
-  const [pledges, setPledges] = useState<any[]>([])
+  const [product, setProduct] = useState<Product | null>(null)
+  const [pledges, setPledges] = useState<Pledge[]>([])
   const [loading, setLoading] = useState(true)
   const [pledgeAmount, setPledgeAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('card')
@@ -81,14 +81,14 @@ export function Pledge() {
       ])
       setProduct(updatedProduct)
       setPledges(updatedPledges)
-    } catch (err: any) {
-      setSubmitMsg(err.message || 'Failed to process pledge. Please try again.')
+    } catch (err: unknown) {
+      setSubmitMsg(err instanceof Error ? err.message : 'Failed to process pledge. Please try again.')
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const fundingProgress = product.funding_goal ? (product.current_funding / product.funding_goal) * 100 : 0
+  const fundingProgress = product.fundingGoal ? (product.currentFunding / product.fundingGoal) * 100 : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8">
@@ -121,8 +121,8 @@ export function Pledge() {
               <h3 className="text-lg font-semibold text-white mb-4"><Target className="w-5 h-5 inline mr-2" /> Funding Progress</h3>
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-300">Raised: ${product.current_funding?.toLocaleString() || '0'}</span>
-                  <span className="text-slate-300">Goal: ${product.funding_goal?.toLocaleString() || '0'}</span>
+                  <span className="text-slate-300">Raised: ${product.currentFunding?.toLocaleString() || '0'}</span>
+                  <span className="text-slate-300">Goal: ${product.fundingGoal?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-3">
                   <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-3 rounded-full transition-all shadow-lg"
@@ -140,15 +140,15 @@ export function Pledge() {
               <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4"><Users className="w-5 h-5 inline mr-2" /> Recent Supporters ({pledges.length})</h3>
                 <div className="space-y-3">
-                  {pledges.slice(0, 5).map(p => (
-                    <div key={p.id} className="flex items-center space-x-3">
-                      <img src={p.users?.avatar_url || ''} alt={p.users?.full_name} className="w-8 h-8 rounded-full border border-slate-600" />
-                      <div className="flex-1">
-                        <p className="text-sm text-white">{p.users?.full_name || 'Anonymous'}</p>
-                        <p className="text-xs text-slate-400">${p.amount}</p>
-                      </div>
-                    </div>
-                  ))}
+                    {pledges.slice(0, 5).map(p => (
+                     <div key={p.id} className="flex items-center space-x-3">
+                       <img src={p.user?.avatar || ''} alt={p.user?.name} className="w-8 h-8 rounded-full border border-slate-600" />
+                       <div className="flex-1">
+                         <p className="text-sm text-white">{p.user?.name || 'Anonymous'}</p>
+                         <p className="text-xs text-slate-400">${p.amount}</p>
+                       </div>
+                     </div>
+                   ))}
                 </div>
               </div>
             )}

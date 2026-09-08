@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { TrendingUp, Star, Rocket, Users, Search } from 'lucide-react'
+import { TrendingUp, Star, Rocket, Users } from 'lucide-react'
 import { ProductCard } from '../components/Product/ProductCard'
 import { CategoryFilter } from '../components/Product/CategoryFilter'
-import { fetchProducts } from '../lib/ProductClient'
+import { fetchProducts, voteProduct } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import type { Product } from '../types'
 
 export function Home() {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -19,7 +23,7 @@ export function Home() {
         setProducts(data)
       } catch (err) {
         console.error('Failed to load products:', err)
-        // If DB isn't set up yet, fall back to empty — UI shows empty state
+        setLoadError(true)
       } finally {
         setLoading(false)
       }
@@ -38,6 +42,13 @@ export function Home() {
   const totalFunding = products.reduce((sum, p) => sum + (p.currentFunding || 0), 0)
   const totalVotes = products.reduce((sum, p) => sum + (p.votes || 0), 0)
 
+  const handleVote = async (productId: string) => {
+    if (!user) return
+    await voteProduct(productId, user.id)
+    const data = await fetchProducts()
+    setProducts(data)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -48,7 +59,6 @@ export function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Hero Section */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -82,7 +92,6 @@ export function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
       <section className="py-16 bg-slate-800 border-y border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -120,7 +129,20 @@ export function Home() {
         </div>
       </section>
 
-      {/* Featured Products */}
+      {loadError && (
+        <div className="py-8 text-center">
+          <div className="max-w-md mx-auto bg-slate-800 border border-red-500/30 rounded-lg p-6">
+            <p className="text-red-300 mb-3">Unable to load products. Please check your connection.</p>
+            <button
+              onClick={() => { setLoadError(false); setLoading(true); fetchProducts().then(setProducts).finally(() => setLoading(false)) }}
+              className="text-cyan-400 hover:text-cyan-300 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="py-16 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
@@ -139,14 +161,13 @@ export function Home() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} onVote={handleVote} />
               ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* Trending Products */}
       <section className="py-16 bg-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
@@ -163,14 +184,13 @@ export function Home() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map(product => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} onVote={handleVote} />
               ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-cyan-600 to-purple-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/90 to-purple-600/90"></div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import type { UserProfile } from '../../types';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -10,7 +11,7 @@ interface ProfileEditModalProps {
 export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<UserProfile>>({
     full_name: user?.name || '',
     avatar_url: user?.avatar || '',
     bio: user?.bio || '',
@@ -102,7 +103,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             <input
               type="text"
               name="full_name"
-              value={formData.full_name}
+              value={formData.full_name ?? ''}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
               required
@@ -113,7 +114,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             <label className="block text-sm font-medium text-slate-900 mb-2">Bio</label>
             <textarea
               name="bio"
-              value={formData.bio}
+              value={formData.bio ?? ''}
               onChange={handleChange}
               rows={4}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition resize-none"
@@ -127,7 +128,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               <input
                 type="url"
                 name="website_url"
-                value={formData.website_url}
+                value={formData.website_url ?? ''}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
                 placeholder="https://example.com"
@@ -139,7 +140,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               <input
                 type="text"
                 name="github_username"
-                value={formData.github_username}
+                value={formData.github_username ?? ''}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
                 placeholder="username"
@@ -151,7 +152,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               <input
                 type="text"
                 name="twitter_username"
-                value={formData.twitter_username}
+                value={formData.twitter_username ?? ''}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
                 placeholder="username"

@@ -22,8 +22,8 @@ export function Login() {
     try {
       await login(email, password);
       navigate('/');
-    } catch (error: any) {
-      setError(error.message || 'Login failed. Please check your credentials.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Login failed. Please check your credentials.');
       console.error('Login failed:', error);
     }
   };

@@ -1,36 +1,35 @@
-import React, { useState } from 'react';
-import { Star } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react'
+import { Star } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface RatingSystemProps {
-  productId: string;
-  currentRating: number;
-  reviewCount: number;
-  onRatingSubmit?: (rating: number, comment: string) => void;
+  productId: string
+  currentRating: number
+  reviewCount: number
+  onRatingSubmit?: (rating: number, comment: string) => void
 }
 
-export function RatingSystem({ productId, currentRating, reviewCount, onRatingSubmit }: RatingSystemProps) {
-  const { user } = useAuth();
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  const [selectedRating, setSelectedRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function RatingSystem({ currentRating, reviewCount, onRatingSubmit }: RatingSystemProps) {
+  const { user } = useAuth()
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [selectedRating, setSelectedRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || selectedRating === 0) return;
+    e.preventDefault()
+    if (!user || selectedRating === 0) return
 
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    onRatingSubmit?.(selectedRating, comment);
-    setShowReviewForm(false);
-    setSelectedRating(0);
-    setComment('');
-    setIsSubmitting(false);
-  };
+    setIsSubmitting(true)
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    onRatingSubmit?.(selectedRating, comment)
+    setShowReviewForm(false)
+    setSelectedRating(0)
+    setComment('')
+    setIsSubmitting(false)
+  }
 
   const renderStars = (rating: number, interactive = false) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -45,12 +44,11 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
         onMouseEnter={interactive ? () => setHoverRating(i + 1) : undefined}
         onMouseLeave={interactive ? () => setHoverRating(0) : undefined}
       />
-    ));
-  };
+    ))
+  }
 
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      {/* Current Rating Display */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center space-x-2 mb-2">
@@ -61,7 +59,7 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
           </div>
           <p className="text-slate-400 text-sm">Based on {reviewCount} reviews</p>
         </div>
-        
+
         {user && !showReviewForm && (
           <button
             onClick={() => setShowReviewForm(true)}
@@ -72,31 +70,10 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
         )}
       </div>
 
-      {/* Rating Breakdown */}
-      <div className="space-y-2 mb-6">
-        {[5, 4, 3, 2, 1].map((stars) => {
-          const percentage = Math.random() * 100; // Mock data
-          return (
-            <div key={stars} className="flex items-center space-x-3">
-              <span className="text-sm text-slate-400 w-8">{stars}★</span>
-              <div className="flex-1 bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-2 rounded-full transition-all"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-              <span className="text-sm text-slate-400 w-12">{Math.round(percentage)}%</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Review Form */}
       {showReviewForm && user && (
         <form onSubmit={handleSubmitReview} className="border-t border-slate-700 pt-6">
           <h3 className="text-lg font-semibold text-white mb-4">Write a Review</h3>
-          
-          {/* Star Rating */}
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-200 mb-2">
               Your Rating
@@ -106,7 +83,6 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
             </div>
           </div>
 
-          {/* Comment */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-200 mb-2">
               Your Review
@@ -121,7 +97,6 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
             />
           </div>
 
-          {/* Actions */}
           <div className="flex items-center space-x-3">
             <button
               type="submit"
@@ -133,9 +108,9 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
             <button
               type="button"
               onClick={() => {
-                setShowReviewForm(false);
-                setSelectedRating(0);
-                setComment('');
+                setShowReviewForm(false)
+                setSelectedRating(0)
+                setComment('')
               }}
               className="bg-slate-700 text-slate-300 px-4 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors"
             >
@@ -154,5 +129,5 @@ export function RatingSystem({ productId, currentRating, reviewCount, onRatingSu
         </div>
       )}
     </div>
-  );
+  )
 }

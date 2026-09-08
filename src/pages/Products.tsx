@@ -3,16 +3,20 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
 import { ProductCard } from '../components/Product/ProductCard'
 import { CategoryFilter } from '../components/Product/CategoryFilter'
-import { fetchProducts } from '../lib/ProductClient'
+import { fetchProducts, voteProduct } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import type { Product } from '../types'
 
 export function Products() {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('votes')
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [localSearchQuery, setLocalSearchQuery] = useState('')
 
   const searchQuery = searchParams.get('search') || ''
@@ -27,12 +31,20 @@ export function Products() {
         setProducts(data)
       } catch (err) {
         console.error('Failed to load products:', err)
+        setLoadError(true)
       } finally {
         setLoading(false)
       }
     }
     load()
   }, [])
+
+  const handleVote = async (productId: string) => {
+    if (!user) return
+    await voteProduct(productId, user.id)
+    const data = await fetchProducts()
+    setProducts(data)
+  }
 
   // Filter by search
   let filtered = products
@@ -165,7 +177,19 @@ export function Products() {
         </div>
 
         {/* Products Grid */}
-        {loading ? (
+        {loadError ? (
+          <div className="text-center py-12">
+            <div className="max-w-md mx-auto bg-slate-800 border border-red-500/30 rounded-lg p-6">
+              <p className="text-red-300 mb-3">Unable to load products. Please check your connection.</p>
+              <button
+                onClick={() => { setLoadError(false); setLoading(true); fetchProducts().then(setProducts).finally(() => setLoading(false)) }}
+                className="text-cyan-400 hover:text-cyan-300 font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <div key={i} className="bg-slate-800 rounded-xl border border-slate-700 p-6 animate-pulse">
@@ -201,7 +225,7 @@ export function Products() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sorted.map(product => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} onVote={handleVote} />
             ))}
           </div>
         )}
