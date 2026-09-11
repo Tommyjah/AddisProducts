@@ -160,7 +160,18 @@ export async function fetchProduct(id: string): Promise<Product | null> {
 
 export async function createProduct(input: ProductInput, userId: string): Promise<Product> {
   const payload: Record<string, unknown> = {
-    ...input,
+    title: input.title,
+    title_am: input.titleAm,
+    description: input.description,
+    description_am: input.descriptionAm,
+    image_url: input.imageUrl,
+    gallery_urls: input.galleryUrls || [],
+    website_url: input.websiteUrl,
+    github_url: input.githubUrl,
+    category: input.category,
+    tags: input.tags || [],
+    funding_goal: input.fundingGoal,
+    status: input.status || 'active',
     user_id: userId,
     is_featured: false,
   }
