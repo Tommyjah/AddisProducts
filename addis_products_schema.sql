@@ -16,13 +16,18 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ---- users ----
 ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS full_name text,
+  ADD COLUMN IF NOT EXISTS bio text,
+  ADD COLUMN IF NOT EXISTS role text DEFAULT 'regular' CHECK (role IN ('regular', 'government', 'admin')),
   ADD COLUMN IF NOT EXISTS avatar_url text,
   ADD COLUMN IF NOT EXISTS github_username text,
   ADD COLUMN IF NOT EXISTS twitter_username text,
   ADD COLUMN IF NOT EXISTS linkedin_url text,
   ADD COLUMN IF NOT EXISTS website_url text,
+  ADD COLUMN IF NOT EXISTS email text,
   ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now(),
-  ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false;
+  ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
 -- ---- products ----
 ALTER TABLE public.products
@@ -44,6 +49,7 @@ ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS is_featured boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS government_only boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS votes_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS avg_rating numeric DEFAULT 0,
   ADD COLUMN IF NOT EXISTS review_count integer DEFAULT 0,
   ADD COLUMN IF NOT EXISTS pledgers_count integer DEFAULT 0,
   ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
