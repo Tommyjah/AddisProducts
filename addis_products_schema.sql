@@ -11,10 +11,53 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
--- PHASE 1: ALTER EXISTING TABLES — add missing columns
+-- PHASE 1: CREATE MISSING TABLES (then ALTER)
 -- ============================================================================
 
--- ---- users ----
+-- ---- users: CREATE IF NOT EXISTS ----
+CREATE TABLE IF NOT EXISTS public.users (
+  id uuid PRIMARY KEY,
+  full_name text,
+  bio text,
+  role text DEFAULT 'regular' CHECK (role IN ('regular', 'government', 'admin')),
+  avatar_url text,
+  github_username text,
+  twitter_username text,
+  linkedin_url text,
+  website_url text,
+  email text,
+  is_verified boolean DEFAULT false,
+  updated_at timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now()
+);
+
+-- Trigger: auto-create user profile row when a new auth user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, full_name, email, role, bio, avatar_url, created_at)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'),
+    NEW.email,
+    'regular',
+    '',
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', ''),
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET full_name = EXCLUDED.full_name,
+        email = EXCLUDED.email;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ---- users: ALTER existing tables — add missing columns ----
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS full_name text,
   ADD COLUMN IF NOT EXISTS bio text,

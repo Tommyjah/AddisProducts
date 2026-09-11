@@ -174,6 +174,7 @@ export async function createProduct(input: ProductInput, userId: string): Promis
     status: input.status || 'active',
     user_id: userId,
     is_featured: false,
+    created_at: new Date().toISOString(),
   }
 
   const { data, error } = await supabase
@@ -195,7 +196,11 @@ export async function createProduct(input: ProductInput, userId: string): Promis
     `)
     .single()
 
-  if (error) throw error
+  if (error) {
+    const detail = error.details ? ` ${error.details}` : ''
+    const hint = error.hint ? ` ${error.hint}` : ''
+    throw new Error(`Failed to create product: ${error.message}${detail}${hint}`.trim())
+  }
   return transformProduct(data as ProductJoin)
 }
 
@@ -211,12 +216,12 @@ export async function voteProduct(productId: string, userId: string): Promise<Vo
 
   if ((existing as VoteRow | null)?.id) {
     const { error: delErr } = await supabase.from('votes').delete().eq('id', (existing as VoteRow).id)
-    if (delErr) throw delErr
+    if (delErr) throw new Error(`Failed to remove vote: ${delErr.message}${delErr.details ? ` ${delErr.details}` : ''}${delErr.hint ? ` ${delErr.hint}` : ''}`.trim())
   } else {
     const { error: insErr } = await supabase
       .from('votes')
       .insert([{ product_id: productId, user_id: userId, vote_type: 'up' }] as never)
-    if (insErr) throw insErr
+    if (insErr) throw new Error(`Failed to cast vote: ${insErr.message}${insErr.details ? ` ${insErr.details}` : ''}${insErr.hint ? ` ${insErr.hint}` : ''}`.trim())
   }
 
   const { data: prod, error: prodErr } = await supabase

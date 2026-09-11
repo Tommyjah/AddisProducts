@@ -105,12 +105,13 @@ export function Submit() {
         fundingGoal: isFunding ? (form.fundingGoal || 0) : undefined,
       }
 
-      const product = await createProduct(input, user.id)
-      navigate(`/products/${product.id}`)
-    } catch (err) {
-      console.error('Submit failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to submit product. Please try again.')
-    } finally {
+       const product = await createProduct(input, user.id)
+       navigate(`/products/${product.id}`)
+     } catch (err) {
+       console.error('Submit failed:', err)
+       const msg = err instanceof Error ? err.message : 'Failed to submit product. Please try again.'
+       setError(msg)
+     } finally {
       setSubmitting(false)
     }
   }

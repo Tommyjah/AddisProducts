@@ -17,6 +17,7 @@ export function ProductDetail() {
   const [voteState, setVoteState] = useState<VoteState>({ voted: false, votesCount: 0 })
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(false)
+  const [voteError, setVoteError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -83,13 +84,14 @@ export function ProductDetail() {
     if (!user || !product || voting) return
 
     setVoting(true)
+    setVoteError(null)
     try {
       const result = await voteProduct(product.id, user.id)
       setVoteState(result)
       const updated = await fetchProduct(product.id)
       if (updated) setProduct(updated)
     } catch (err) {
-      console.error('Vote failed:', err)
+      setVoteError(err instanceof Error ? err.message : 'Vote failed. Please try again.')
     } finally {
       setVoting(false)
     }
@@ -269,6 +271,9 @@ export function ProductDetail() {
               </div>
               {!user && (
                 <p className="text-xs text-slate-400 text-center mt-3">Sign in to vote</p>
+              )}
+              {voteError && (
+                <p className="text-xs text-red-400 text-center mt-3">{voteError}</p>
               )}
             </div>
 

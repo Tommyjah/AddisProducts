@@ -30,8 +30,8 @@ export function RatingSystem({ currentRating, reviewCount, onRatingSubmit }: Rat
       setShowReviewForm(false)
       setSelectedRating(0)
       setComment('')
-    } catch {
-      setError('Failed to submit review. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit review. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
