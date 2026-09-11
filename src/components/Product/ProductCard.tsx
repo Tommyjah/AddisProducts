@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronUp, MessageCircle, Users, ExternalLink, Github, DollarSign, Star } from 'lucide-react'
-import { Product } from '../../types'
+import { Product, VoteState } from '../../types'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { fetchUserVote } from '../../lib/ProductClient'
@@ -9,38 +9,36 @@ import { formatGithubUrl } from '../../lib/ProductClient'
 
 interface ProductCardProps {
   product: Product
-  onVote?: (productId: string) => Promise<void>
+  onVote?: (productId: string) => Promise<VoteState>
 }
 
 export function ProductCard({ product, onVote }: ProductCardProps) {
   const { t, language } = useLanguage()
   const { user } = useAuth()
-  const [voteState, setVoteState] = useState(false)
-  const [localVotes, setLocalVotes] = useState(product.votes)
+  const [voteState, setVoteState] = useState<VoteState>({ voted: false, votesCount: product.votes })
   const [voteError, setVoteError] = useState('')
 
   useEffect(() => {
-    setLocalVotes(product.votes)
+    setVoteState(prev => ({ ...prev, votesCount: product.votes }))
   }, [product.votes])
 
   useEffect(() => {
     if (!user || !product.id) return
     let cancelled = false
     fetchUserVote(product.id, user.id).then(v => {
-      if (!cancelled) setVoteState(v === 'up')
+      if (!cancelled) setVoteState({ voted: v === 'up', votesCount: product.votes })
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [product.id, user])
+  }, [product.id, user, product.votes])
 
   const handleVote = async () => {
     if (!user || !onVote) return
     setVoteError('')
     try {
-      await onVote(product.id)
-      const updated = await fetchUserVote(product.id, user.id)
-      setVoteState(updated === 'up')
-    } catch {
-      setVoteError('Vote failed. Please try again.')
+      const result = await onVote(product.id)
+      setVoteState(result)
+    } catch (err) {
+      setVoteError(err instanceof Error ? err.message : 'Vote failed. Please try again.')
     }
   }
 
@@ -102,7 +100,7 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
               onClick={handleVote}
               disabled={!user || !onVote}
               className={`p-1 rounded-lg transition-all ${
-                voteState
+                voteState.voted
                   ? 'bg-cyan-500 text-white shadow-lg'
                   : user && onVote
                   ? 'bg-slate-700 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400'
@@ -112,7 +110,7 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
               <ChevronUp className="w-4 h-4" />
             </button>
             <span className="text-xs font-medium text-white px-2 py-1 bg-slate-700 rounded-full min-w-[2rem] text-center">
-              {localVotes}
+              {voteState.votesCount}
             </span>
             {voteError && (
               <span className="text-xs text-red-400 max-w-[6rem] text-center">{voteError}</span>

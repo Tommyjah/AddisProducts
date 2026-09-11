@@ -195,15 +195,15 @@ export function Collaborate() {
               </h3>
               <div className="flex items-start space-x-4">
                 <img
-                  src={product.users.avatar_url || 'https://via.placeholder.com/100x100?text=User'}
-                  alt={product.users.full_name}
+                  src={product.users?.avatar_url || 'https://via.placeholder.com/100x100?text=User'}
+                  alt={product.users?.full_name || 'User'}
                   className="w-16 h-16 rounded-full border border-slate-600"
                 />
                 <div className="flex-1">
-                  <h4 className="font-medium text-white mb-1">{product.users.full_name}</h4>
-                  <p className="text-slate-300 text-sm mb-3">{product.users.bio}</p>
+                  <h4 className="font-medium text-white mb-1">{product.users?.full_name || 'Unknown'}</h4>
+                  <p className="text-slate-300 text-sm mb-3">{product.users?.bio || ''}</p>
                   <div className="flex items-center space-x-4">
-                    {product.users.github_username && (
+                    {product.users?.github_username && (
                       <a
                         href={`https://github.com/${product.users.github_username}`}
                         target="_blank"
@@ -214,9 +214,9 @@ export function Collaborate() {
                         <span className="text-sm">GitHub</span>
                       </a>
                     )}
-                    {product.users.linkedin_url && (
+                    {product.users?.linkedin_url && (
                       <a
-                        href={product.users.linkedin_url}
+                        href={product.users?.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center space-x-1 text-slate-400 hover:text-white transition-colors"

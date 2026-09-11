@@ -6,7 +6,7 @@ import { CategoryFilter } from '../components/Product/CategoryFilter'
 import { fetchProducts, voteProduct } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
-import type { Product } from '../types'
+import type { Product, VoteState } from '../types'
 
 export function Home() {
   const { t } = useLanguage()
@@ -42,11 +42,11 @@ export function Home() {
   const totalFunding = products.reduce((sum, p) => sum + (p.currentFunding || 0), 0)
   const totalVotes = products.reduce((sum, p) => sum + (p.votes || 0), 0)
 
-  const handleVote = async (productId: string) => {
-    if (!user) return
-    await voteProduct(productId, user.id)
-    const data = await fetchProducts()
-    setProducts(data)
+  const handleVote = async (productId: string): Promise<VoteState> => {
+    if (!user) return { voted: false, votesCount: 0 }
+    const result = await voteProduct(productId, user.id)
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, votes: result.votesCount } : p))
+    return result
   }
 
   if (loading) {
