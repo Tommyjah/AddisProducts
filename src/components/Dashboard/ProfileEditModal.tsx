@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { UserProfile } from '../../types';
+import { Avatar } from '../common/Avatar';
+import { uploadAvatar } from '../../lib/ProductClient';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface ProfileEditModalProps {
 export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     full_name: user?.name || '',
     avatar_url: user?.avatar || '',
@@ -26,14 +29,32 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, avatar_url: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file (PNG, JPG, GIF, etc.)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be smaller than 5MB');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
+    try {
+      const url = await uploadAvatar(file, user.id);
+      setFormData(prev => ({ ...prev, avatar_url: url }));
+    } catch (err) {
+      setError(err instanceof Error ? `Upload failed: ${err.message}` : 'Failed to upload avatar. Please try again.');
+      console.error(err);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -46,7 +67,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       await updateProfile(formData);
       onClose();
     } catch (err) {
-      setError('Failed to update profile. Please try again.');
+      setError(err instanceof Error ? `Update failed: ${err.message}` : 'Failed to update profile. Please try again.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -79,17 +100,19 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             <label className="block text-sm font-medium text-slate-900 mb-2">Avatar</label>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <img
-                  src={formData.avatar_url || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop'}
-                  alt="Avatar preview"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-slate-300"
+                <Avatar
+                  src={formData.avatar_url}
+                  name={formData.full_name || user?.name || 'User'}
+                  size={80}
+                  className="w-20 h-20 rounded-full border-2 border-slate-300 object-cover"
                 />
-                <label className="absolute bottom-0 right-0 bg-cyan-500 text-white p-2 rounded-full cursor-pointer hover:bg-cyan-600 transition-colors">
+                <label className={`absolute bottom-0 right-0 bg-cyan-500 text-white p-2 rounded-full cursor-pointer hover:bg-cyan-600 transition-colors ${uploading ? 'opacity-50 cursor-wait' : ''}`}>
                   <Upload className="w-4 h-4" />
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleAvatarChange}
+                    onChange={handleAvatarUpload}
+                    disabled={uploading}
                     className="hidden"
                   />
                 </label>

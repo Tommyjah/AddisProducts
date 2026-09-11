@@ -4,6 +4,7 @@ import { ArrowLeft, DollarSign, Clock, FileText, CheckCircle, XCircle, AlertCirc
 import { fetchGovernmentProposals } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { GovernmentProposal } from '../types'
+import { Avatar } from '../components/common/Avatar'
 
 export function GovernmentProposalDetail() {
   const { id } = useParams<{ id: string }>()
@@ -323,9 +324,10 @@ export function GovernmentProposalDetail() {
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Submitted By</h3>
               <div className="flex items-center space-x-3">
-                <img
-                  src={proposal.user?.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=80&h=80&fit=crop'}
-                  alt={proposal.user?.name}
+                <Avatar
+                  src={proposal.user?.avatar}
+                  name={proposal.user?.name}
+                  size={40}
                   className="w-10 h-10 rounded-full border border-slate-600"
                 />
                 <div>

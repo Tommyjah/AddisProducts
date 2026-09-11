@@ -7,6 +7,7 @@ import { fetchProduct, fetchReviews, voteProduct, fetchUserVote, submitReview } 
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import type { Product, Review, VoteState } from '../types'
+import { Avatar } from '../components/common/Avatar'
 
 export function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -197,9 +198,10 @@ export function ProductDetail() {
 
                 <div className="flex items-center justify-between border-t border-slate-700 pt-4">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={product.user?.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop'}
-                      alt={product.user?.name}
+                    <Avatar
+                      src={product.user?.avatar}
+                      name={product.user?.name}
+                      size={48}
                       className="w-12 h-12 rounded-full border border-slate-600"
                     />
                     <div>

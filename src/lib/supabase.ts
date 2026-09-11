@@ -335,6 +335,87 @@ export type Database = {
           status?: string
         }
       }
+      featured_campaigns: {
+        Row: {
+          id: string
+          product_id: string
+          user_id: string
+          duration_days: number
+          tier: 'standard' | 'premium'
+          price_etb: number
+          start_date: string
+          end_date: string
+          status: 'active' | 'completed' | 'cancelled' | 'refunded'
+          payment_id: string | null
+          transaction_ref: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          user_id: string
+          duration_days: number
+          tier: 'standard' | 'premium'
+          price_etb: number
+          start_date?: string
+          end_date: string
+          status?: 'active' | 'completed' | 'cancelled' | 'refunded'
+          payment_id?: string | null
+          transaction_ref?: string | null
+          created_at?: string
+        }
+        Update: {
+          status?: 'active' | 'completed' | 'cancelled' | 'refunded'
+          end_date?: string
+        }
+      }
+      newsletter_subscribers: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          subscribed_at: string
+          source: 'website' | 'social' | 'referral' | 'other'
+        }
+        Insert: {
+          id?: string
+          email: string
+          name?: string | null
+          subscribed_at?: string
+          source?: 'website' | 'social' | 'referral' | 'other'
+        }
+        Update: {
+          email?: string
+          name?: string | null
+          source?: 'website' | 'social' | 'referral' | 'other'
+        }
+      }
+      admin_activity_log: {
+        Row: {
+          id: string
+          admin_id: string
+          action: string
+          entity_type: string
+          entity_id: string | null
+          details: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_id: string
+          action: string
+          entity_type: string
+          entity_id?: string | null
+          details?: string | null
+          created_at?: string
+        }
+        Update: {
+          action?: string
+          entity_type?: string
+          entity_id?: string | null
+          details?: string | null
+        }
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

@@ -4,6 +4,7 @@ import { fetchGovernmentProposals } from '../lib/ProductClient'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import type { GovernmentProposal } from '../types'
+import { Avatar } from '../components/common/Avatar'
 
 export function Government() {
   const { t } = useLanguage()
@@ -175,9 +176,10 @@ export function Government() {
                     </div>
                     <div className="flex items-center justify-between pt-4 border-t border-slate-700">
                       <div className="flex items-center space-x-2">
-                        <img
-                          src={proposal.user?.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&fit=crop'}
-                          alt={proposal.user?.name}
+                        <Avatar
+                          src={proposal.user?.avatar}
+                          name={proposal.user?.name}
+                          size={24}
                           className="w-6 h-6 rounded-full border border-slate-600"
                         />
                         <span className="text-sm text-slate-300">{proposal.user?.name}</span>

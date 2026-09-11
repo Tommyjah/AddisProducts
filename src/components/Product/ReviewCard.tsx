@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Star, ThumbsUp } from 'lucide-react'
 import { Review } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
+import { Avatar } from '../common/Avatar'
 
 interface ReviewCardProps {
   review: Review
@@ -35,9 +36,10 @@ export function ReviewCard({ review }: ReviewCardProps) {
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <img
+          <Avatar
             src={review.user.avatar}
-            alt={review.user.name}
+            name={review.user.name}
+            size={40}
             className="w-10 h-10 rounded-full border border-slate-600"
           />
           <div>

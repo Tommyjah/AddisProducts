@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, Globe, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { Avatar } from '../common/Avatar';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -59,7 +60,7 @@ export function Header() {
               to="/products"
               className="text-slate-200 hover:text-cyan-400 font-medium transition-colors"
             >
-              {t('nav.products')}
+            {t('nav.products')}
             </Link>
             <Link
               to="/government"
@@ -67,6 +68,14 @@ export function Header() {
             >
               {t('nav.government')}
             </Link>
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className="text-slate-200 hover:text-cyan-400 font-medium transition-colors"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               to="/submit"
               className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-600 transition-all shadow-lg"
@@ -90,11 +99,12 @@ export function Header() {
             {user ? (
               <div className="flex items-center space-x-3">
                 <Link to="/dashboard" className="flex items-center space-x-2 hover:bg-slate-700 rounded-lg p-2 transition-colors">
-                  <img
-                    src={user.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop'}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full border border-slate-600 object-cover"
-                  />
+                  <Avatar
+                  src={user.avatar}
+                  name={user.name}
+                  size={32}
+                  className="w-8 h-8 rounded-full border border-slate-600 object-cover"
+                />
                   <span className="hidden sm:block text-sm font-medium text-slate-200">{user.name}</span>
                 </Link>
                 <button
@@ -172,6 +182,15 @@ export function Header() {
               >
                 {t('nav.government')}
               </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block py-2 text-slate-200 hover:text-cyan-400 font-medium transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
               <Link
                 to="/submit"
                 onClick={() => setIsMenuOpen(false)}

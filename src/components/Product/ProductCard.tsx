@@ -6,6 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { fetchUserVote } from '../../lib/ProductClient'
 import { formatGithubUrl } from '../../lib/ProductClient'
+import { Avatar } from '../../components/common/Avatar'
 
 interface ProductCardProps {
   product: Product
@@ -158,9 +159,10 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <img
+            <Avatar
               src={product.user.avatar}
-              alt={product.user.name}
+              name={product.user.name}
+              size={24}
               className="w-6 h-6 rounded-full border border-slate-600"
             />
             <span className="text-sm text-slate-300">{product.user.name}</span>

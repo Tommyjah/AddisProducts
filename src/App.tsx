@@ -12,6 +12,8 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { AuthCallback } from './pages/AuthCallback';
 import { Dashboard } from './pages/Dashboard';
+import { Admin } from './pages/Admin';
+import { AdminRoute } from './components/common/AdminRoute';
 import { ProductDetail } from './pages/ProductDetail';
 import { GovernmentSubmit } from './pages/GovernmentSubmit';
 import { GovernmentProposalDetail } from './pages/GovernmentProposalDetail';
@@ -42,7 +44,8 @@ function App() {
                   <Route path="/submit" element={<Submit />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                   <Route path="/dashboard" element={<Dashboard />} />
+                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/privacy" element={<Privacy />} />

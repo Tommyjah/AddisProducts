@@ -1,11 +1,12 @@
 import { Product, GovernmentProposal, User, Review } from '../types';
+import { generateAvatar } from '../lib/avatar';
 
 export const mockUsers: User[] = [
   {
     id: '1',
     name: 'Abel Tesfaye',
     email: 'abel@example.com',
-    avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    avatar: generateAvatar('Abel Tesfaye', 150),
     role: 'regular',
     bio: 'Full-stack developer passionate about Ethiopian tech innovation',
     github: 'abeltesfaye',
@@ -15,7 +16,7 @@ export const mockUsers: User[] = [
     id: '2',
     name: 'Sara Mengistu',
     email: 'sara@example.com',
-    avatar: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    avatar: generateAvatar('Sara Mengistu', 150),
     role: 'regular',
     bio: 'UI/UX Designer & Frontend Developer',
     github: 'saramengistu',
@@ -25,7 +26,7 @@ export const mockUsers: User[] = [
     id: '3',
     name: 'Daniel Kebede',
     email: 'daniel@gov.et',
-    avatar: 'https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop',
+    avatar: generateAvatar('Daniel Kebede', 150),
     role: 'government',
     bio: 'Government Technology Officer',
     joinedAt: new Date('2024-01-10'),

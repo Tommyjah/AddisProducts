@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ProjectForm } from '../components/Dashboard/ProjectForm';
+import { Avatar } from '../components/common/Avatar';
 
 interface Project {
   id: string;
@@ -112,9 +113,10 @@ export function Dashboard() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-lg p-6 sticky top-24">
               <div className="flex flex-col items-center text-center">
-                <img
-                  src={user.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop'}
-                  alt={user.name}
+                <Avatar
+                  src={user.avatar}
+                  name={user.name}
+                  size={96}
                   className="w-24 h-24 rounded-full border-4 border-cyan-500 mb-4 object-cover"
                 />
                 <h1 className="text-2xl font-bold text-slate-900 mb-2">{user.name}</h1>

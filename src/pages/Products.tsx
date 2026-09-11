@@ -16,7 +16,7 @@ export function Products() {
   const [sortBy, setSortBy] = useState('votes')
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [localSearchQuery, setLocalSearchQuery] = useState('')
 
   const searchQuery = searchParams.get('search') || ''
@@ -31,7 +31,7 @@ export function Products() {
         setProducts(data)
       } catch (err) {
         console.error('Failed to load products:', err)
-        setLoadError(true)
+        setLoadError(err instanceof Error ? err.message : 'Failed to load products')
       } finally {
         setLoading(false)
       }
@@ -180,9 +180,9 @@ export function Products() {
         {loadError ? (
           <div className="text-center py-12">
             <div className="max-w-md mx-auto bg-slate-800 border border-red-500/30 rounded-lg p-6">
-              <p className="text-red-300 mb-3">Unable to load products. Please check your connection.</p>
+              <p className="text-red-300 mb-3">Unable to load products: {loadError}</p>
               <button
-                onClick={() => { setLoadError(false); setLoading(true); fetchProducts().then(setProducts).finally(() => setLoading(false)) }}
+                onClick={() => { setLoadError(null); setLoading(true); fetchProducts().then(setProducts).catch(e => setLoadError(e instanceof Error ? e.message : 'Failed to load products')).finally(() => setLoading(false)) }}
                 className="text-cyan-400 hover:text-cyan-300 font-medium"
               >
                 Retry

@@ -105,7 +105,7 @@ export function Submit() {
         fundingGoal: isFunding ? (form.fundingGoal || 0) : undefined,
       }
 
-       const product = await createProduct(input, user.id)
+       const product = await createProduct(input, user.id, user.email)
        navigate(`/products/${product.id}`)
      } catch (err) {
        console.error('Submit failed:', err)

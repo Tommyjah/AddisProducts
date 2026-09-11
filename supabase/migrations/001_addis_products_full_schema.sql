@@ -377,6 +377,48 @@ CREATE POLICY "comm_delete_own" ON public.comments FOR DELETE TO authenticated
 -- PHASE 4: TRIGGERS (idempotent — CREATE OR REPLACE + DROP IF EXISTS)
 -- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- CLEANUP: Drop ALL existing triggers on tables whose columns were renamed,
+-- so that no stale trigger from an older schema version continues to reference
+-- dropped columns (total_votes, upvotes, downvotes, etc.).
+-- This fixes "column 'total_votes' of relation 'products' does not exist".
+-- ----------------------------------------------------------------------------
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT tgname, tgrelid::regclass::text AS tbl_name
+    FROM pg_trigger
+    WHERE NOT tgisinternal
+      AND (tgrelid = 'public.products'::regclass
+           OR tgrelid = 'public.votes'::regclass
+           OR tgrelid = 'public.reviews'::regclass
+           OR tgrelid = 'public.pledges'::regclass
+           OR tgrelid = 'public.featured_campaigns'::regclass
+           OR tgrelid = 'public.comments'::regclass)
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS %I ON %s', r.tgname, r.tbl_name);
+  END LOOP;
+END
+$$;
+
+-- Also drop any stale trigger functions that may reference old columns
+DROP FUNCTION IF EXISTS public.trg_update_votes_count() CASCADE;
+DROP FUNCTION IF EXISTS public.trg_update_reviews() CASCADE;
+DROP FUNCTION IF EXISTS public.trg_update_pledges() CASCADE;
+DROP FUNCTION IF EXISTS public.trg_toggle_featured() CASCADE;
+DROP FUNCTION IF EXISTS public.update_votes_count() CASCADE;
+DROP FUNCTION IF EXISTS public.update_product_votes() CASCADE;
+DROP FUNCTION IF EXISTS public.update_reviews_count() CASCADE;
+DROP FUNCTION IF EXISTS public.update_product_reviews() CASCADE;
+DROP FUNCTION IF EXISTS public.update_funding() CASCADE;
+DROP FUNCTION IF EXISTS public.update_product_funding() CASCADE;
+DROP FUNCTION IF EXISTS public.update_featured() CASCADE;
+DROP FUNCTION IF EXISTS public.toggle_featured() CASCADE;
+DROP FUNCTION IF EXISTS public.update_votes() CASCADE;
+DROP FUNCTION IF EXISTS public.recalculate_votes() CASCADE;
+
 -- votes → products.votes_count
 CREATE OR REPLACE FUNCTION trg_update_votes_count()
 RETURNS TRIGGER AS $$
@@ -698,3 +740,125 @@ CREATE POLICY "storage_products_select_auth" ON storage.objects FOR SELECT TO au
 CREATE POLICY "storage_products_insert_auth" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);
 CREATE POLICY "storage_products_update_own" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);
 CREATE POLICY "storage_products_delete_own" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'products' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ============================================================================
+-- PHASE 8: STORAGE POLICIES FOR "avatars" BUCKET
+-- Create the "avatars" bucket in Supabase Dashboard → Storage before applying.
+-- ============================================================================
+
+DROP POLICY IF EXISTS "storage_avatars_select_anon" ON storage.objects;
+DROP POLICY IF EXISTS "storage_avatars_select_auth" ON storage.objects;
+DROP POLICY IF EXISTS "storage_avatars_insert_auth" ON storage.objects;
+DROP POLICY IF EXISTS "storage_avatars_update_own" ON storage.objects;
+DROP POLICY IF EXISTS "storage_avatars_delete_own" ON storage.objects;
+
+CREATE POLICY "storage_avatars_select_anon" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'avatars');
+CREATE POLICY "storage_avatars_select_auth" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'avatars');
+CREATE POLICY "storage_avatars_insert_auth" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "storage_avatars_update_own" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "storage_avatars_delete_own" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ============================================================================
+-- PHASE 9: USERS TABLE — RESTORE ORIGINAL STATE (no RLS)
+-- The users table did not have RLS in the original schema. Enabling RLS broke
+-- product/proposal page joins and profile updates because policies were left
+-- in an inconsistent state. The admin page is protected at the app layer via
+-- AdminRoute. These statements are idempotent (safe to re-run).
+-- ============================================================================
+
+-- Drop ALL policies we may have created on public.users in prior runs.
+DROP POLICY IF EXISTS "users_select_anon_public" ON public.users;
+DROP POLICY IF EXISTS "users_select_anon_public_auth" ON public.users;
+DROP POLICY IF EXISTS "users_select_authed_read" ON public.users;
+DROP POLICY IF EXISTS "users_select_self" ON public.users;
+DROP POLICY IF EXISTS "users_insert_own" ON public.users;
+DROP POLICY IF EXISTS "users_update_self" ON public.users;
+DROP POLICY IF EXISTS "users_admin_select_all" ON public.users;
+DROP POLICY IF EXISTS "users_admin_update_all" ON public.users;
+
+-- Disable RLS so the users table behaves as before (admin access is enforced
+-- by the AdminRoute component in the frontend).
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- PHASE 10: ADMIN ACCESS POLICIES (admin role can manage all data)
+-- These are ADDITIVE policies — they don't replace the existing ones.
+-- ============================================================================
+
+-- products: admin can view/update/delete all products
+DROP POLICY IF EXISTS "prod_admin_view" ON public.products;
+DROP POLICY IF EXISTS "prod_admin_update" ON public.products;
+DROP POLICY IF EXISTS "prod_admin_delete" ON public.products;
+
+CREATE POLICY "prod_admin_view" ON public.products FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "prod_admin_update" ON public.products FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "prod_admin_delete" ON public.products FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- government_proposals: admin can manage all proposals
+DROP POLICY IF EXISTS "govp_admin_view" ON public.government_proposals;
+DROP POLICY IF EXISTS "govp_admin_update" ON public.government_proposals;
+DROP POLICY IF EXISTS "govp_admin_delete" ON public.government_proposals;
+
+CREATE POLICY "govp_admin_view" ON public.government_proposals FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "govp_admin_update" ON public.government_proposals FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "govp_admin_delete" ON public.government_proposals FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- collaborations: admin can view/manage all
+DROP POLICY IF EXISTS "collab_admin_view" ON public.collaborations;
+DROP POLICY IF EXISTS "collab_admin_update" ON public.collaborations;
+DROP POLICY IF EXISTS "collab_admin_delete" ON public.collaborations;
+
+CREATE POLICY "collab_admin_view" ON public.collaborations FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "collab_admin_update" ON public.collaborations FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "collab_admin_delete" ON public.collaborations FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- reviews: admin can view/manage all
+DROP POLICY IF EXISTS "rev_admin_view" ON public.reviews;
+DROP POLICY IF EXISTS "rev_admin_update" ON public.reviews;
+DROP POLICY IF EXISTS "rev_admin_delete" ON public.reviews;
+
+CREATE POLICY "rev_admin_view" ON public.reviews FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "rev_admin_update" ON public.reviews FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "rev_admin_delete" ON public.reviews FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- comments: admin can view/manage all
+DROP POLICY IF EXISTS "comm_admin_view" ON public.comments;
+DROP POLICY IF EXISTS "comm_admin_update" ON public.comments;
+DROP POLICY IF EXISTS "comm_admin_delete" ON public.comments;
+
+CREATE POLICY "comm_admin_view" ON public.comments FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "comm_admin_update" ON public.comments FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "comm_admin_delete" ON public.comments FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- pledges: admin can view/manage all
+DROP POLICY IF EXISTS "pledge_admin_view" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_admin_update" ON public.pledges;
+DROP POLICY IF EXISTS "pledge_admin_delete" ON public.pledges;
+
+CREATE POLICY "pledge_admin_view" ON public.pledges FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "pledge_admin_update" ON public.pledges FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "pledge_admin_delete" ON public.pledges FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+-- payments: admin can manage all (complements existing pay_admin_manage)
+DROP POLICY IF EXISTS "pay_admin_select_all" ON public.payments;
+
+CREATE POLICY "pay_admin_select_all" ON public.payments FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
