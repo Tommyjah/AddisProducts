@@ -144,50 +144,74 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 export async function fetchProduct(id: string): Promise<Product | null> {
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      users (
-        id,
-        full_name,
-        avatar_url,
-        bio,
-        github_username,
-        twitter_username,
-        website_url,
-        role,
-        created_at
-      )
-    `)
-    .eq('id', id)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        users (
+          id,
+          full_name,
+          avatar_url,
+          bio,
+          github_username,
+          twitter_username,
+          website_url,
+          role,
+          created_at
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return transformProduct(data as ProductJoin)
+  } catch (err) {
+    console.error('fetchProduct with users join failed, retrying without join:', err)
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single()
 
     if (error) {
       if (error.code === 'PGRST116') return null
       throw new Error(`Failed to load product: ${error.message}${error.details ? ` ${error.details}` : ''}${error.hint ? ` ${error.hint}` : ''}`.trim())
     }
 
-  return transformProduct(data as ProductJoin)
+    return transformProduct({ ...(data as ProductRow), users: null })
+  }
 }
 
 export async function ensureUserProfile(userId: string, email?: string): Promise<void> {
-  const { data, error: findErr } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle()
+  const { data: { user: sessionUser } } = await supabase.auth.getUser()
+  const effectiveUserId = userId || sessionUser?.id || ''
+  const effectiveEmail = email || sessionUser?.email
 
-  if (!findErr && data) return
-
-  if (findErr && findErr.code !== 'PGRST116' && findErr.code !== 'PGRST101') {
-    throw new Error(`Cannot verify user profile: ${findErr.message}`)
+  if (!effectiveUserId) {
+    throw new Error('Cannot create user profile: authentication session is missing')
   }
 
+  const { error: rpcError } = await supabase.rpc(
+    'ensure_user_profile',
+    { p_user_id: effectiveUserId, p_email: effectiveEmail ?? null } as never
+  )
+
+  if (!rpcError) return
+  console.warn('ensure_user_profile RPC unavailable; trying direct profile insert:', rpcError.message)
+
+  const { data: existing, error: findErr } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', effectiveUserId)
+    .maybeSingle()
+
+  if (!findErr && existing) return
+
   const basePayload: Record<string, unknown> = {
-    id: userId,
+    id: effectiveUserId,
     full_name: 'User',
-    email: email || null,
+    email: effectiveEmail ?? null,
     bio: '',
     avatar_url: '',
   }
@@ -196,7 +220,6 @@ export async function ensureUserProfile(userId: string, email?: string): Promise
     .from('users')
     .insert({ ...basePayload, role: 'regular' } as never)
 
-  // CHECK constraint may reject 'regular' — retry without role, letting DEFAULT or NULL take over
   if (insertErr && insertErr.code === '23514') {
     const { error: retryErr } = await supabase
       .from('users')
@@ -205,11 +228,18 @@ export async function ensureUserProfile(userId: string, email?: string): Promise
   }
 
   if (insertErr) {
-    const detail = insertErr.details ? ` ${insertErr.details}` : ''
-    const hint = insertErr.hint ? ` ${insertErr.hint}` : ''
-    throw new Error(
-      `Cannot create user profile: ${insertErr.message}${detail}${hint}`.trim()
-    )
+    console.warn(`Could not create user record in users:`, insertErr.message)
+    return
+  }
+
+  const { data: created } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', effectiveUserId)
+    .maybeSingle()
+
+  if (!created) {
+    console.warn(`ensureUserProfile: profile insert did not create a readable row for ${effectiveUserId}`)
   }
 }
 
@@ -305,26 +335,78 @@ export async function fetchUserVote(productId: string, userId: string): Promise<
   return voteType === 'up' ? 'up' : null
 }
 
-export async function submitReview(productId: string, userId: string, rating: number, comment: string): Promise<Review> {
-  const { data, error } = await supabase
+export async function submitReview(productId: string, userId: string, rating: number, comment: string, email?: string): Promise<Review> {
+  const { data: { user: sessionUser } } = await supabase.auth.getUser()
+  const authUserId = sessionUser?.id || userId
+  const authEmail = sessionUser?.email || email
+
+  const { data: rpcReview, error: rpcError } = await supabase.rpc(
+    'submit_review',
+    {
+      p_product_id: productId,
+      p_rating: rating,
+      p_comment: comment,
+      p_email: authEmail ?? null,
+    } as never
+  )
+
+  if (!rpcError && rpcReview) {
+    return transformReview({ ...(rpcReview as ReviewRow), users: null })
+  }
+
+  console.warn('submit_review RPC unavailable; trying direct review upsert:', rpcError?.message)
+  await ensureUserProfile(authUserId, authEmail)
+
+  const { data: existing, error: findErr } = await supabase
     .from('reviews')
-    .insert([{ product_id: productId, user_id: userId, rating, comment }] as never)
-    .select(`*, users (id, full_name, avatar_url)`)
-    .single()
+    .select('id')
+    .eq('product_id', productId)
+    .eq('user_id', authUserId)
+    .maybeSingle()
+
+  if (findErr) throw findErr
+
+  const reviewPayload = { product_id: productId, user_id: authUserId, rating, comment } as never
+  const { data, error } = existing
+    ? await supabase
+        .from('reviews')
+        .update(reviewPayload)
+        .eq('id', existing.id)
+        .select(`*, users (id, full_name, avatar_url)`)
+        .single()
+    : await supabase
+        .from('reviews')
+        .insert([reviewPayload])
+        .select(`*, users (id, full_name, avatar_url)`)
+        .single()
 
   if (error) throw new Error(`Failed to submit review: ${error.message}${error.details ? ` ${error.details}` : ''}${error.hint ? ` ${error.hint}` : ''}`.trim())
   return transformReview(data as ReviewJoin)
 }
 
 export async function fetchReviews(productId: string): Promise<Review[]> {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select(`*, users (id, full_name, avatar_url)`)
-    .eq('product_id', productId)
-    .order('created_at', { ascending: false })
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`*, users (id, full_name, avatar_url)`)
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
 
-  if (error) throw new Error(`Failed to load reviews: ${error.message}${error.details ? ` ${error.details}` : ''}${error.hint ? ` ${error.hint}` : ''}`.trim())
-  return (data as ReviewJoin[] | null | undefined)?.map(transformReview) || []
+    if (error) throw error
+    return (data as ReviewJoin[] | null | undefined)?.map(transformReview) || []
+  } catch (err) {
+    console.error('fetchReviews with users join failed, retrying without join:', err)
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw new Error(`Failed to load reviews: ${error.message}${error.details ? ` ${error.details}` : ''}${error.hint ? ` ${error.hint}` : ''}`.trim())
+    return (data as (ReviewRow & { users: null })[] | null | undefined)?.map(row =>
+      transformReview({ ...row, users: null })
+    ) || []
+  }
 }
 
 export async function createPledge(productId: string, userId: string, amount: number, message?: string): Promise<Pledge> {
@@ -431,6 +513,16 @@ export async function uploadImage(file: File, userId: string): Promise<string> {
     .from('products')
     .upload(path, file, { upsert: false })
 
+  if (uploadErr && uploadErr.message.includes('Bucket not found')) {
+    console.warn('Products bucket not configured; falling back to data URL')
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   if (uploadErr) throw uploadErr
 
   const { data: publicData } = supabase.storage.from('products').getPublicUrl(uploadData.path)
@@ -441,44 +533,24 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
   const ext = file.name.split('.').pop() || 'png'
   const path = `${userId}/avatar-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-  const buckets = ['products', 'avatars']
-  let lastError: unknown
+  const { data: uploadData, error: uploadErr } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true })
 
-  for (const bucket of buckets) {
-    // Best-effort: try to ensure the bucket exists (only succeeds with admin/service_role key)
-    try {
-      await supabase.storage.createBucket(bucket, { public: true })
-    } catch {
-      // bucket may already exist or we lack permission to create it — continue
-    }
-
-    try {
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from(bucket)
-        .upload(path, file, { upsert: true })
-
-      if (uploadErr) {
-        lastError = uploadErr
-        continue
-      }
-
-      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(uploadData.path)
-      return publicData.publicUrl
-    } catch (e) {
-      lastError = e
-      continue
-    }
+  if (uploadErr && uploadErr.message.includes('Bucket not found')) {
+    console.warn('Avatars bucket not configured; falling back to data URL')
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
-  // Final fallback: encode as data URL so the avatar feature still works even
-  // without a configured storage bucket.
-  console.warn('Storage upload failed, falling back to data URL:', lastError)
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
+  if (uploadErr) throw uploadErr
+
+  const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
+  return publicData.publicUrl
 }
 
 export function formatGithubUrl(input: string | undefined): string | undefined {

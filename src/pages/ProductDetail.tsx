@@ -41,7 +41,7 @@ export function ProductDetail() {
           setError('not_found')
         } else {
           setProduct(prod)
-          setVoteState({ voted: prod.votes > 0, votesCount: prod.votes })
+          setVoteState({ voted: false, votesCount: prod.votes })
         }
         setReviews(revs)
       } catch (err) {
@@ -223,7 +223,7 @@ export function ProductDetail() {
               reviewCount={product.reviewCount || 0}
               onRatingSubmit={async (rating, comment) => {
                 if (!user) return
-                await submitReview(product.id, user.id, rating, comment)
+                await submitReview(product.id, user.id, rating, comment, user.email)
                 const updated = await fetchReviews(product.id)
                 setReviews(updated)
                 const refreshed = await fetchProduct(product.id)

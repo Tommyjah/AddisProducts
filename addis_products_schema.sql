@@ -72,6 +72,48 @@ ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
+UPDATE public.users SET role = 'regular' WHERE role IS NULL OR role NOT IN ('regular', 'government', 'admin');
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE public.users ADD CONSTRAINT users_role_check CHECK (role IN ('regular', 'government', 'admin'));
+
+CREATE OR REPLACE FUNCTION public.ensure_user_profile(p_user_id uuid, p_email text DEFAULT null)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.users (id, full_name, email, role, bio, avatar_url)
+  VALUES (p_user_id, 'User', p_email, 'regular', '', '')
+  ON CONFLICT (id) DO UPDATE
+    SET full_name = COALESCE(NULLIF(public.users.full_name, ''), EXCLUDED.full_name),
+        email = COALESCE(EXCLUDED.email, public.users.email),
+        updated_at = now();
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ensure_user_profile(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ensure_user_profile(uuid, text) TO authenticated;
+
+INSERT INTO public.users (id, full_name, email, role, bio, avatar_url)
+SELECT
+  auth_user.id,
+  COALESCE(auth_user.raw_user_meta_data ->> 'full_name', 'User'),
+  auth_user.email,
+  'regular',
+  '',
+  COALESCE(auth_user.raw_user_meta_data ->> 'avatar_url', '')
+FROM auth.users AS auth_user
+ON CONFLICT (id) DO UPDATE
+  SET full_name = COALESCE(NULLIF(public.users.full_name, ''), EXCLUDED.full_name),
+      email = COALESCE(EXCLUDED.email, public.users.email),
+      updated_at = now();
+
+
 -- ---- products ----
 ALTER TABLE public.products
   DROP COLUMN IF EXISTS total_votes,
@@ -128,7 +170,8 @@ $$;
 -- ---- reviews ----
 ALTER TABLE public.reviews
   ADD COLUMN IF NOT EXISTS helpful_count integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS comment text;
 
 DO $$
 BEGIN
@@ -141,6 +184,69 @@ BEGIN
   END IF;
 END
 $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'reviews_user_id_fkey'
+      AND conrelid = 'public.reviews'::regclass
+  ) THEN
+    ALTER TABLE public.reviews
+      ADD CONSTRAINT reviews_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+  END IF;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION public.submit_review(
+  p_product_id uuid,
+  p_rating integer,
+  p_comment text DEFAULT null,
+  p_email text DEFAULT null
+)
+RETURNS public.reviews
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_review public.reviews%ROWTYPE;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_rating IS NULL OR p_rating < 1 OR p_rating > 5 THEN
+    RAISE EXCEPTION 'rating must be between 1 and 5' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_comment IS NULL OR btrim(p_comment) = '' THEN
+    RAISE EXCEPTION 'comment is required' USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.users (id, full_name, email, role, bio, avatar_url)
+  VALUES (v_user_id, 'User', p_email, 'regular', '', '')
+  ON CONFLICT (id) DO UPDATE
+    SET full_name = COALESCE(NULLIF(public.users.full_name, ''), 'User'),
+        email = COALESCE(EXCLUDED.email, public.users.email),
+        updated_at = now();
+
+  INSERT INTO public.reviews (product_id, user_id, rating, comment)
+  VALUES (p_product_id, v_user_id, p_rating, p_comment)
+  ON CONFLICT (product_id, user_id) DO UPDATE
+    SET rating = EXCLUDED.rating,
+        comment = EXCLUDED.comment
+  RETURNING * INTO v_review;
+
+  RETURN v_review;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.submit_review(uuid, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_review(uuid, integer, text, text) TO authenticated;
+
 
 -- ---- government_proposals: add content columns ----
 ALTER TABLE public.government_proposals
