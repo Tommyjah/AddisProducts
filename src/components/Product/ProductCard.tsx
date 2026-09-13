@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ChevronUp, MessageCircle, Users, ExternalLink, Github, DollarSign, Star } from 'lucide-react'
 import { Product, VoteState } from '../../types'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -14,6 +14,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onVote }: ProductCardProps) {
+  const navigate = useNavigate()
   const { t, language } = useLanguage()
   const { user } = useAuth()
   const [voteState, setVoteState] = useState<VoteState>({ voted: false, votesCount: product.votes })
@@ -32,7 +33,8 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
     return () => { cancelled = true }
   }, [product.id, user, product.votes])
 
-  const handleVote = async () => {
+  const handleVote = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!user || !onVote) return
     setVoteError('')
     try {
@@ -41,6 +43,10 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
     } catch (err) {
       setVoteError(err instanceof Error ? err.message : 'Vote failed. Please try again.')
     }
+  }
+
+  const handleCardClick = () => {
+    navigate(`/products/${product.id}`)
   }
 
   const title = language === 'am' && product.titleAm ? product.titleAm : product.title
@@ -62,7 +68,10 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg border border-slate-700 hover:shadow-xl hover:border-cyan-500/50 transition-all duration-300 group overflow-hidden">
+    <div
+      className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg border border-slate-700 hover:shadow-xl hover:border-cyan-500/50 transition-all duration-300 group overflow-hidden cursor-pointer"
+      onClick={handleCardClick}
+    >
       <div className="relative overflow-hidden rounded-t-xl">
         <img
           src={product.image}
@@ -85,12 +94,9 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
       <div className="p-6">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <Link
-              to={`/products/${product.id}`}
-              className="text-lg font-semibold text-white hover:text-cyan-400 transition-colors line-clamp-1"
-            >
+            <h3 className="text-lg font-semibold text-white hover:text-cyan-400 transition-colors line-clamp-1">
               {title}
-            </Link>
+            </h3>
             <p className="text-sm text-slate-300 mt-1 line-clamp-2">
               {description}
             </p>
@@ -183,6 +189,7 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-slate-400 hover:text-white transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Github className="w-4 h-4" />
                 </a>
@@ -193,6 +200,7 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-slate-400 hover:text-white transition-colors"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
@@ -202,19 +210,17 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
         </div>
 
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
-          <Link
-            to={`/products/${product.id}`}
-            className="flex items-center space-x-1 text-sm text-slate-300 hover:text-cyan-400 transition-colors"
-          >
+          <div className="flex items-center space-x-1 text-sm text-slate-300 hover:text-cyan-400 transition-colors">
             <MessageCircle className="w-4 h-4" />
             <span>{t('product.comments')}</span>
-          </Link>
+          </div>
 
           <div className="flex items-center space-x-2">
             {product.status === 'funding' && (
               <Link
                 to={`/pledge/${product.id}`}
                 className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 px-3 py-1 rounded-lg text-sm font-medium transition-all shadow-lg"
+                onClick={(e) => e.stopPropagation()}
               >
                 <DollarSign className="w-3 h-3 inline mr-1" />
                 Pledge
@@ -223,6 +229,7 @@ export function ProductCard({ product, onVote }: ProductCardProps) {
             <Link
               to={`/collaborate/${product.id}`}
               className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 px-3 py-1 rounded-lg text-sm font-medium transition-all shadow-lg"
+              onClick={(e) => e.stopPropagation()}
             >
               {t('product.collaborate')}
             </Link>

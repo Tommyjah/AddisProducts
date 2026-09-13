@@ -11,13 +11,16 @@ export type Database = {
           description: string
           description_am: string | null
           image_url: string | null
+          logo_url: string | null
           gallery_urls: string[] | null
           website_url: string | null
           github_url: string | null
+          link: string | null
           category: string
           tags: string[] | null
           funding_goal: number | null
           current_funding: number | null
+          total_funding: number | null
           status: 'active' | 'funding' | 'completed'
           is_featured: boolean
           government_only: boolean
@@ -28,6 +31,7 @@ export type Database = {
           avg_rating: number | null
           review_count: number | null
           pledgers_count: number | null
+          language_preference: string | null
         }
         Insert: {
           id?: string
